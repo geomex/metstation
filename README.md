@@ -5,6 +5,8 @@ viable data to estimate timing of runoff and also helped snow
 sciencists better understand patterns and chnages in snow
 dynamics.
 
+![snotel\_sites][https://github.com/geomex/metstation/blob/master/figures/snotel_sites.jpeg]
+
 ## Getting Started
 
 ### Running the app locally
@@ -34,6 +36,7 @@ venv\Scripts\activate
 ```
 
 To install all of the required packages to this environment, simply run:
+
 
 ```
 pip install -r requirements.txt
