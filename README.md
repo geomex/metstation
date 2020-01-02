@@ -1,4 +1,4 @@
-# Metstation Project
+# Snotel Project
 
 Snotel Meteorlogical sites have provided water resource managers
 viable data to estimate timing of runoff and also helped snow
