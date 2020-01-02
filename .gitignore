@@ -97,6 +97,10 @@ venv.bak/
 
 # Junk Folder
 Junk/
+junk/
+
+# Config Files
+myconfig.py
 
 # Mac .gitignore stuff
 # General
