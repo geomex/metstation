@@ -1,24 +1,30 @@
-# US opioid epidemic dataset and Dash app
+# Metstation Project
 
-Poison induced death data was downloaded from [CDC Wonder](dash_app_screencast.gif), using cause-of-death codes X40–X44 (unintentional), X60–X64 (suicide), X85 (homicide), or Y10–Y14 (undetermined intent).
-
-[View the Dash app](https://dash-gallery.plotly.host/dash-opioid-epidemic/)
+Snotel Meteorlogical sites have provided water resource managers
+viable data to estimate timing of runoff and also helped snow
+sciencists better understand patterns and chnages in snow
+dynamics.
 
 ## Getting Started
 
 ### Running the app locally
-We suggest you to create a separate virtual environment running Python 3 for this app, and install all of the required dependencies there. Run in Terminal/Command Prompt:
+
+We suggest you to create a separate virtual environment running
+Python 3 for this app, and install all of the required
+dependencies there. Run in Terminal/Command Prompt:
 
 ```
-git clone https://github.com/plotly/dash-sample-apps
-cd dash-sample-apps/apps/dash-opioid-epidemic
+git clone https://github.com/geomex/metstation.git
+cd metstation
 python3 -m virtualenv venv
 ```
+
 In UNIX system: 
 
 ```
 source venv/bin/activate
 ```
+
 In Windows: 
 
 ```
@@ -31,9 +37,36 @@ To install all of the required packages to this environment, simply run:
 pip install -r requirements.txt
 ```
 
-and all of the required `pip` packages, will be installed, and the app will be able to run.
+and all of the required `pip` packages, will be installed, and
+the app will be able to run.
+
+#### Using Conda Environment
+
+The other option is to use a conda environment, to do this you
+will need to install anaconda or conda onto your computer. You
+can following the steps found at the
+[Anaconda Installation Site](https://docs.anaconda.com/anaconda/install/). 
+
+Once you have anaconda installed you can run the following to
+create the  anaconda environment and then activate it. 
+
+```
+1. conda env create -f environment.ymnl
+2. conda activate metstation
+```
 
 
-![plotly-dash-screencast](assets/app_screencast.gif)
+#### Using the Webcrawler
 
-Dash app inspired by [this Tableau dashboard](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/)
+Once in proper environment, you will neeed to make use of the
+webcrawler by runnint the following in the command line.
+
+```
+python snotel_webcrawler
+```
+
+And follow the questions prompted. 
+
+#### How to run the dashboard
+
+
