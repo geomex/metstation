@@ -61,14 +61,12 @@ create the  anaconda environment and then activate it.
 #### Using the Webcrawler
 
 Once in proper environment, you will neeed to make use of the
-webcrawler by runnint the following in the command line.
+webcrawler by runninG the following in the command line and
+follow the questions prompted.
 
 ```
 python snotel_webcrawler
 ```
 
-And follow the questions prompted. 
-
-#### How to run the dashboard
 
 
