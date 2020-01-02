@@ -1,7 +1,7 @@
 # Snotel Project
 
 <p align="center">
-<img height="400" src="https://github.com/geomex/metstation/blob/master/figures/snotel_sites.jpeg">
+<img height="400" src="https://github.com/geomex/metstation/blob/master/figures/snotel_sites.png">
 </p>
 
 
