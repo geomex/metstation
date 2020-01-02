@@ -1,0 +1,24 @@
+# ..............................................................................
+# for all the fancy stuff you can change, take a look at:
+# https://github.com/matplotlib/matplotlib/blob/master/matplotlibrc.template
+# and to see what different parts of the figure are called:
+# https://matplotlib.org/faq/usage_faq.html#parts-of-a-figure
+# ..............................................................................
+# axes stuff
+axes.titlesize : 30
+axes.labelsize : 30
+# line stuff
+lines.linewidth : 2
+lines.markersize : 10
+# tiny ticks on axes... ugh
+xtick.labelsize : 30
+ytick.labelsize : 30
+xtick.major.size : 0
+ytick.major.size : 0
+# legend stuff
+legend.framealpha : 1
+legend.fontsize : 30
+# latex stuff
+text.usetex : True
+# font.sans-serif : Helvetica
+# font.serif : Times New Roman

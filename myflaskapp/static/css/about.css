@@ -1,0 +1,18 @@
+.logo {
+    display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+    height: auto;
+}
+
+#images{
+    text-align:center;
+}
+
+.img_container {
+  float: left;
+  width: 30%;
+  margin-right: 1%;
+  margin-bottom: 0.5em;
+  text-align: center;
+}
