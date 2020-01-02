@@ -9,6 +9,8 @@ dynamics.
 
 ### Running the app locally
 
+#### Using VIRTUALENV
+
 We suggest you to create a separate virtual environment running
 Python 3 for this app, and install all of the required
 dependencies there. Run in Terminal/Command Prompt:
