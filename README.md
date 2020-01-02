@@ -5,7 +5,7 @@ viable data to estimate timing of runoff and also helped snow
 sciencists better understand patterns and chnages in snow
 dynamics.
 
-![snotel\_sites][https://github.com/geomex/metstation/blob/master/figures/snotel_sites.jpeg]
+![snotel\_sites](https://github.com/geomex/metstation/blob/master/figures/snotel_sites.jpeg)
 
 ## Getting Started
 
