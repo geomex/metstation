@@ -13,287 +13,28 @@ import statsmodels.api as sm
 import sys
 from pylab import rcParams
 from fbprophet import Prophet
+import os
 import psycopg2
-import pprint
 if not abspath('../utils/') in sys.path:
     sys.path.append(abspath('../utils/'))
 
-import userinput
-from myconfig import db_configx
+from userinput import load_snotel
+from myconfig import db_config
+from sqlalchemy import create_engine, types
+engine = create_engine(
+    'postgresql+psycopg2://joel.gongora:@localhost:5432/metstation'
+)
 
 warnings.filterwarnings("ignore")
 plt.style.use('fivethirtyeight')
 
-# -------------------- #
-# Connect to Database  #
-# -------------------- #
-
-
-def query_load_data(sql_command):
-    conn = psycopg2.connect(
-        host=db_config['host'],
-        user=db_config['user'],
-        password='',
-        dbname=db_config['dbname']
-    )
-
-    datos = pd.read_sql(sql_command, conn)
-    conn.close()
-    return datos
-
-
-# -------------------------------------- #
-# Query the Database and Load all States #
-# -------------------------------------- #
-column = 'state'
-sql_command = f"SELECT DISTINCT {column} FROM snotel"
-
-print(query_load_data(sql_command)[column].sort_values().to_list())
-
-# ---------------------------- #
-# Request User Input for State #
-# ---------------------------- #
-
-state = userinput.enterstate()
-
-# Build Query for the State #
-
-sql_command = f"SELECT site_name, site_id FROM snotel WHERE state='{state}'"
-
-datos = query_load_data(sql_command)
-
-cols = [
-    'ntwk', 'state', 'site_name',
-    'ts', 'start', 'lat',
-    'lon', 'elev', 'county','huc'
-]
-
-sql_command = f'''SELECT {', '.join([str(col) for col
-in [*cols]])} FROM snotel_locs WHERE state='{state}' '''
-
-datos_locs = query_load_data(sql_command)
-
-pprint.pprint(list(datos.site_name.unique()))
-
-site = userinput.selectsite()
-# -------------------------------------------------- #
-#          Query the DataBase to access SWE          #
-# -------------------------------------------------- #
-
-cols = [
-    'date',
-    'snow_water_equivalent_in_start_of_day_values',
-    'precipitation_accumulation_in_start_of_day_values',
-    'air_temperature_maximum_degf',
-    'air_temperature_minimum_degf',
-    'air_temperature_average_degf',
-    'precipitation_increment_in'
-]
-
-sql_command = f'''SELECT {', '.join([str(col) for col in [*cols]])} 
-FROM snotel WHERE state='{state}' AND site_name='{site}' '''
-
-
-mas_datos = query_load_data(sql_command).dropna()
-
-swe = mas_datos[
-    ['date', 'snow_water_equivalent_in_start_of_day_values']
-]
-
-swe['datetime'] = pd.to_datetime(swe['date'])
-swe = swe.set_index('datetime')
-swe.drop(['date'], axis=1, inplace=True)
-
-# ------------------------------------------------ #
-#          Resampling Start of Each Week           #
-# ------------------------------------------------ #
-
-y = swe['snow_water_equivalent_in_start_of_day_values'] \
-    .astype(float).resample('D').interpolate()[::7]
-
-y.plot(figsize=(15, 6))
-plt.ylabel('SWE [in]')
-plt.xlabel('Time')
-plt.title(state + ' ' + site + "\nSWE Forcasting")
-plt.tight_layout()
-plt.show()
-
-# ---------- Figure Size for Plotting ---------- #
-rcParams['figure.figsize'] = 18, 8
-
-# ------------------------------------------------ #
-#          Decomposing Time Series to View         #
-#           Seasonality vs Noise                   #
-# ------------------------------------------------ #
-
-decomposition = sm.tsa.seasonal_decompose(y, model='additive')
-fig = decomposition.plot()
-plt.show()
-
-# -------------------------------------------------- #
-#                Fitting the ARIMA model             #
-#                Printing Results                    #
-# -------------------------------------------------- #
-
-
-def fit_arima(y=y):
-    mod = sm.tsa.statespace.SARIMAX(
-        y,
-        order=(1, 1, 1),
-        seasonal_order=(1, 1, 0, 12),
-        enforce_stationarity=False,
-        enforce_invertibility=False
-    )
-
-    results.plot_diagnostics(figsize=(16, 8))
-    plt.tight_layout()
-    plt.savefig('../figures/diagnostics_' + site + '_' + state + '.png')
-    plt.show()
-
-    return mod.fit()
-
-
-results = fit_arima(y)
-
-print(results.summary().tables[1])
-
-
-# -------------------------------------------------- #
-#                Plotting Results                    #
-# -------------------------------------------------- #
-
-
-# -------------------------------------------------- #
-#                Validating Forecasts                #
-# -------------------------------------------------- #
-
-def plot_arima(
-        y=None,
-        pred=None,
-        start_date=None,
-        state=None,
-        site=None
-):
-    # ------------------------------------ #
-    # Get the date closest to 'start_date' #
-    # ------------------------------------ #
-
-    empezar = y[
-        y.index > pd.to_datetime('2014-09-01')
-    ].first_valid_index()
-
-    pred = results.get_prediction(
-        start=empezar, dynamic=False
-    )
-
-    pred_ci = pred.conf_int()
-    pred_ci.iloc[:, 0][pred_ci.iloc[:, 0] < 0] = 0
-    pred_ci.iloc[:, 1][pred_ci.iloc[:, 1] < 0] = 0
-    ano = y.index.map(lambda x: x.strftime('%Y')).min()
-    ax = y[ano:].plot(label='observed')
-    pred.predicted_mean.plot(
-        ax=ax, label='One-step ahead Forecast', alpha=.7, figsize=(14, 7)
-    )
-    ax.fill_between(
-        pred_ci.index, pred_ci.iloc[:, 0],
-        pred_ci.iloc[:, 1], color='k', alpha=.2,
-        label='confidence_interval'
-    )
-    ax.set_xlabel('Date')
-    ax.set_ylabel('SWE [in]')
-    ax.set_ylim([0, y.max()+2])
-    plt.legend()
-    plt.title(f"{state}:{site}:\nForcasting SWE with ARIMA")
-    plt.tight_layout()
-
-    plt.savefig(
-        f'../figures/forecast_arima_{site}_{state}.png'
-    )
-
-    plt.show()
-
-    return empezar, pred
-
-
-# -------------------------------------------------- #
-#                Calculating the MSE                 #
-# -------------------------------------------------- #
-
-y_forecasted = pred.predicted_mean
-
-y_truth = y[empezar:]
-mse = ((y_forecasted - y_truth) ** 2).mean()
-print(
-    f'ARIMA Mean Squared Error: {mse:0.2}'
-)
-
-print(
-    f'ARIMA RMSE: {np.sqrt(mse):0.2}'
-)
-
-
-# -------------------------------------------------- #
-#              Producing and Visualizing             #
-#                    Longer Predictions              #
-# -------------------------------------------------- #
-def pred_n_plot(
-        results=None,
-        y=None,
-        steps=None,
-        site=None,
-        state=None
-):
-    pred_uc = results.get_forecast(steps=steps)
-    pred_ci = pred_uc.conf_int()
-    ax = y.plot(label='observed', figsize=(14, 7))
-    pred_uc.predicted_mean.plot(ax=ax, label='Forecast')
-    ax.fill_between(pred_ci.index,
-                    pred_ci.iloc[:, 0],
-                    pred_ci.iloc[:, 1], color='k', alpha=.25)
-    ax.set_xlabel('Date')
-    ax.set_ylabel('SWE [in]')
-    ax.set_ylim([0, y.max()+2])
-    plt.title(site + "\nSWE Forcasting")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(
-        '../figures/forecast_arima_long' +
-        site + ':' + state + '.png'
-    )
-    plt.show()
-
-
-pred_n_plot(
-    results=results,
-    y=y,
-    steps=100,
-    site=site,
-    state=state
-)
-
-
-# ================================================== #
-#        Time Series Modeling with Prophet           #
-# ================================================== #
-
 
 def swe_prophet(
-        y=None,
-        periods=100,
+        swe_for_prophet=None,
         interval_width=0.95
 ):
     # uncertainty interval to 95% #
     swe_model = Prophet(interval_width=0.95)
-
-    # ----- rename column ----- #
-    swe_for_prophet = y.to_frame().rename(
-        columns={'snow_water_equivalent_in_start_of_day_values': 'y'}
-    )
-
-    # ----- set DATES index as a column ----- #
-    swe_for_prophet = swe_for_prophet.reset_index().rename(
-        columns={'datetime': 'ds'}
-    )
 
     # Fit Model #
     swe_model.fit(swe_for_prophet)
@@ -301,117 +42,137 @@ def swe_prophet(
     return swe_model
 
 
-def swe_predict_plot(
-        swe_model=None,
-        state=None,
-        site=None,
-        periods=100,
-        plot=False
-):
-    # ---------------------------------------- #
-    #          Forecasting to the Future       #
-    # ---------------------------------------- #
 
-    test = swe_model.make_future_dataframe(periods=100)
-    f = swe_model.predict(test)
+# ------------------------------------------------- #
+# Load Dictionary of Snotels for the State of Idaho #
+# ------------------------------------------------- #
 
-    if plot:
-        swe_model.plot(
-            f, xlabel='Date', ylabel='SWE [in]'
-        )
-        plt.xticks(rotation=30)
-        plt.tight_layout()
-        plt.show()
-        plt.title(f"{state}: {site}\nSWE Forcasting")
-        plt.tight_layout()
-        plt.savefig(f'../figures/fbprophet_{state}_{site}.png')
-        plt.show()
-    return f
+states = os.listdir('../data')
+
+snotelID_to_name = {}
 
 
-swe_model = swe_prophet(
-    y=y,
-    periods=100,
-    interval_width=0.95
-)
-
-predictions = swe_predict_plot(
-    swe_model=swe_model,
-    state=state,
-    site=site,
-    periods=100,
-    plot=False
-)
-
-
-swe_forecast = swe_model \
-    .make_future_dataframe(periods=24, freq='W')
-swe_forecast = swe_model.predict(swe_forecast)
-
-
-plt.figure(figsize=(16, 8))
-swe_model.plot(swe_forecast,
-               xlabel='Date',
-               ylabel='SWE [in]')
-plt.title(site + "\nSWE Forcasting")
-plt.tight_layout()
-plt.savefig(f'../figures/fbprophet_{state}_{site}.png')
-plt.show()
-
-
-
-swe_model = Prophet(interval_width=0.95)
-
-# ----- rename column ----- #
-swe_for_prophet = y.to_frame().rename(
-    columns={'snow_water_equivalent_in_start_of_day_values': 'y'}
-)
-
-# ----- set DATES index as a column ----- #
-swe_for_prophet = swe_for_prophet.reset_index().rename(
-    columns={'datetime': 'ds'}
-)
-
-# --------- #
-# Fit Model #
-# --------- #
-
-swe_model.fit(swe_for_prophet)
-
-# ---------------------------------------- #
-#          Forecasting to the Future       #
-# ---------------------------------------- #
-
-test = swe_model.make_future_dataframe(periods=100)
-f = swe_model.predict(test)
-
-fig = swe_model.plot(f)
-plt.show()
-
-swe_forecast = swe_model \
-    .make_future_dataframe(periods=24, freq='W')
-swe_forecast = swe_model.predict(swe_forecast)
-
-swe_names = ['SWE_%s' % column
-             for column in swe_forecast.columns]
-
-merge_swe_forecast = swe_forecast.copy()
-merge_swe_forecast.columns = swe_names
-
-forecast = swe_forecast \
-    .rename(columns={'ds': 'Date'})
-forecast.head()
-
-
-# -------------------------------------------------- #
-#                Trend and Forecast                  #
-#                Visualization                       #
-# -------------------------------------------------- #
-
-plt.figure(figsize=(10, 7))
-plt.plot(forecast['Date'], forecast['yearly'], 'b-')
-plt.legend()
-plt.xlabel('Date')
-plt.ylabel('SWE [in]')
-plt.title('SWE')
-plt.show()
+for state in states:
+    if len(state) == 2:
+        print(f'Working on State {state}')
+        try:
+            datos, snotel_id = load_snotel(state)
+            # ----------------------------------- #
+            # Create a Table for Each Snotel Site #
+            # ----------------------------------- #
+            for sno_id in snotel_id:
+                datos[sno_id] = datos[sno_id].replace(
+                    to_replace="nan", value=np.nan
+                )
+                # Convert to Datetime
+                datos[sno_id]['date'] = pd.to_datetime(
+                    datos[sno_id]['date'], format="%m/%d/%y"
+                )
+                
+                # ------------------ #
+                # Convert to Numeric #
+                # ------------------ #                
+                
+                for col in datos[sno_id].columns:
+                    if col not in ['date', 'site_name', 'state', 'site_id']:
+                        datos[sno_id][col] = pd.to_numeric(datos[sno_id][col])
+                        if col in ['site_id']:
+                            datos[sno_id][col] = datos[sno_id][col].astype('int')
+                        else:
+                            datos[sno_id][col] = datos[sno_id][col].astype('str')
+                datos[sno_id] = datos[sno_id].replace(
+                    to_replace="nan", value=np.nan
+                )
+                site_name = sno_id.split(':')[1].split(',')[0].strip()
+                columns = datos[sno_id].columns.tolist()
+                columns = [
+                    columns[i].strip().lower()
+                    .replace(' ', '_').replace('(', '')
+                    .replace(')', '')
+                    for i in np.arange(len(columns))
+                ]
+                datos[sno_id].columns = columns
+                # Rename 
+                tmp = datos[sno_id][
+                    ['date','snow_water_equivalent_in_start_of_day_values']
+                ].rename(
+                    columns={
+                        'date':'ds',
+                        'snow_water_equivalent_in_start_of_day_values':'y'
+                    }
+                )                
+                # Use fbprophet to predict SWE #
+                swe_model = swe_prophet(
+                    swe_for_prophet=tmp,
+                    interval_width=0.95
+                )
+                test = swe_model.make_future_dataframe(periods=100)
+                f = swe_model.predict(test)
+                datos[sno_id] = pd.concat([datos[sno_id], f], axis=1)
+                # ----------------------------- #
+                # Add Site Name and ID to Table #
+                # ----------------------------- # 
+                datos[sno_id]['site_name'] = site_name
+                datos[sno_id]['site_id'] = sno_id.split(':')[0].split(" ")[1]
+                # ----------------------- #
+                # Add State Name to TAble #
+                # ----------------------- #
+                datos[sno_id]['state'] = state
+                # Push DataFrame to DB #
+                datos[sno_id][
+                    [
+                        'date',
+                        'site_id',
+                        'site_name',
+                        'state',
+                        'trend',
+                        'yhat',
+                        'yhat_lower',
+                        'yhat_upper',
+                        'trend_lower',
+                        'trend_upper',
+                        'additive_terms',
+                        'additive_terms_lower',
+                        'additive_terms_upper',
+                        'weekly',
+                        'weekly_lower',
+                        'weekly_upper',
+                        'yearly',
+                        'yearly_lower',
+                        'yearly_upper',
+                        'multiplicative_terms',
+                        'multiplicative_terms_lower',
+                        'multiplicative_terms_upper'
+                    ]
+                ].to_sql(
+                    'snotel_fbprophet',
+                    engine,
+                    if_exists='append',
+                    index=False,
+                    dtype={
+                        'date': types.DATE,
+                        'site_id': types.INTEGER,
+                        'site_name': types.VARCHAR(50),
+                        'state': types.VARCHAR(3),
+                        'trend': types.REAL,
+                        'yhat': types.REAL,
+                        'yhat_lower': types.REAL,
+                        'yhat_upper': types.REAL,
+                        'trend_lower': types.REAL,
+                        'trend_upper': types.REAL,
+                        'additive_terms': types.REAL,
+                        'additive_terms_lower': types.REAL,
+                        'additive_terms_upper': types.REAL,
+                        'weekly': types.REAL,
+                        'weekly_lower': types.REAL,
+                        'weekly_upper': types.REAL,
+                        'yearly': types.REAL,
+                        'yearly_lower': types.REAL,
+                        'yearly_upper': types.REAL,
+                        'multiplicative_terms': types.REAL,
+                        'multiplicative_terms_lower': types.REAL,
+                        'multiplicative_terms_upper': types.REAL
+                    }
+                )
+        except:
+            print('Unable to push to DB')

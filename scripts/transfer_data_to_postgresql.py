@@ -15,7 +15,7 @@ if not abspath('../utils/') in sys.path:
     sys.path.append(abspath('../utils/'))
 
 from userinput import load_snotel
-from myconfig import config
+from myconfig import db_config
 
 engine = create_engine(
     'postgresql+psycopg2://joel.gongora:@localhost:5432/metstation'
