@@ -266,7 +266,7 @@ dash_app.layout = html.Div(
                                                 datos['state'] == state
                                         ]['site_name'].sort_values().unique()
                                     ],
-                                    value='Bogus Basin'
+                                    # value='Bogus Basin'
                                 ),
                             ],
                         ),
@@ -526,9 +526,12 @@ def fbprophet_update(state_value, site_value):
 
 @dash_app.callback(
     Output("snotel_map", "figure"),
-    [Input("state-dropdown", "value")]
+    [
+        Input("state-dropdown", "value"),
+        Input("site-dropdown", "value")
+    ]
 )
-def update_snotel_map(state_value):
+def update_snotel_map(state_value, site_value):
     cols = [
         'ntwk', 'state', 'site_name',
         'ts', 'start', 'lat',
@@ -540,12 +543,28 @@ def update_snotel_map(state_value):
 
     datos_locs = query_load_data(sql_command)
 
+    site_lat, site_lon = zip(
+        *datos_locs.loc[
+            datos_locs['site_name'].str.contains(site_value)
+        ][['lat','lon']].values
+    )
+
+    
     data=[
-        dict(
+        go.Scattermapbox(
             lat=datos_locs["lat"],
             lon=datos_locs["lon"],
             text=datos_locs["site_name"],
-            type="scattermapbox",
+            name='Snotel Sites'
+        ),
+        go.Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            text=site_value,
+            marker=go.scattermapbox.Marker(
+                size=14
+            ),
+            name=site_value
         )
     ]
 
@@ -578,6 +597,19 @@ def update_snotel_map(state_value):
     [Input("state-dropdown", "value")]
 )
 def update_site_dropdown(state):
+    cols = [
+        'date',
+        'snow_water_equivalent_in_start_of_day_values',
+        'precipitation_accumulation_in_start_of_day_values',
+        'air_temperature_maximum_degf',
+        'air_temperature_minimum_degf',
+        'air_temperature_average_degf',
+        'precipitation_increment_in',
+        'site_name',
+        'site_id',
+        'state'
+    ]
+
     sql_command = f'''SELECT {', '.join([str(col) for col
     in [*cols]])} FROM snotel WHERE state='{state}' '''
 
