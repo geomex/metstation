@@ -94,6 +94,45 @@ datos = query_load_data(sql_command).sort_values(by='date')
 datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
 YEARS = list(datos['year'].unique())
 
+sql_command = f'''SELECT * FROM snotel_fbprophet 
+WHERE state='{state}' AND site_name='{site}' '''
+
+fb_datos = query_load_data(sql_command).sort_values(by='date')
+
+fb_datos.loc[fb_datos['yhat']<0, 'yhat'] = 0
+upper_bound = go.Scatter(
+    name='Upper Bound',
+    x=fb_datos['date'],
+    y=fb_datos['yhat_upper'],
+    mode='lines',
+    marker=dict(color='#444'),
+    line=dict(width=0),
+    fillcolor='rgba(68,68,68,0.3)',
+    fill='tonexty'
+)
+
+trace = go.Scatter(
+    name='Yhat',
+    x=fb_datos['date'],
+    y=fb_datos['yhat'],
+    mode='lines',
+    line=dict(color='rgb(31, 119, 180)'),
+    fillcolor='rgba(68, 68, 68, 0.3)',
+    fill='tonexty'
+)
+
+
+lower_bound = go.Scatter(
+    name='Lower Bound',
+    x=fb_datos['date'],
+    y=fb_datos['yhat_lower'],
+    mode='lines',
+    marker=dict(color='#444'),
+    line=dict(width=0),
+    fillcolor='rgba(68,68,68,0.3)',
+)
+
+
 # --------------- #
 # Query Locations #
 # --------------- #
@@ -136,8 +175,6 @@ dash_app.layout = html.Div(
                         height='6%',
                         width='6%'
                     )
-                    # width=200,
-                    # height=200,
                 ),
                 html.H4(children="NRCS Snotel: Snow Accumulation Graphs"),
                 html.P(
@@ -194,12 +231,12 @@ dash_app.layout = html.Div(
                                     id="snotel_map",
                                     figure=dict(),
                                 ),
-                            ],style = {
-                                "border-style": "solid",
-                                "height": "70%",
-                                "width": "100%",
-                                "fontsize":16
-                            },
+                            ],#style = {
+                            #     "border-style": "solid",
+                            #     "height": "50%",
+                            #     # "width": "100%",
+                            #     "fontsize":16
+                            # },
                         ),
                     ],
                 ),
@@ -321,7 +358,7 @@ dash_app.layout = html.Div(
                                                         color="white",
                                                     ),
                                                 ),
-                                                yaxis=dict(
+                                                 yaxis=dict(
                                                     # backgroundcolor="rgb(200, 200, 230)",
                                                 gridcolor="rgba(0,0,0, 0.1)",
                                                     showbackground=False,
@@ -339,32 +376,36 @@ dash_app.layout = html.Div(
                                 ),
                             ],
                         ),
-                        # ----------------- #
-                        # Snotel Swe Curves #
-                        # ----------------- #                        
+                        # ----------------------- #
+                        # Prophet Swe Predictions #
+                        # ----------------------- #                        
                         html.Div(
-                            children=[
-                                html.H4('Prophet Forecast'),
+                            # id="root",
+                            children = [
+                                html.H4('Prophet Forecast'),        
                                 dcc.Graph(
                                     id='forecast-graph',
                                     animate=True,
                                     figure=dict(
                                         data=[
-                                            dict(
-                                                x=datos['date'],
-                                                y=datos['snow_water_equivalent_in_start_of_day_values'],
-                                                type='scatter',
-                                            )
+                                            upper_bound,
+                                            trace,
+                                            lower_bound
+                                            #     dict(
+                                            #         x=fb_datos['date'],
+                                            #         y=fb_datos[plot_variable],
+                                            #         type='scatter',
+                                            #     )
                                         ],
                                         layout=go.Layout(
-                                            # title = f'{datos["state"].unique()[0]}:' + \
-                                            # f' {datos["site_name"].unique()[0]}',
-                                        paper_bgcolor = 'rgba(0,0,0,0)',
+                                            # title = f'{fb_datos["state"].unique()[0]}:' + \
+                                            # f' {fb_datos["site_name"].unique()[0]}',
+                                            paper_bgcolor = 'rgba(0,0,0,0)',
                                             plot_bgcolor = 'rgba(0,0,0,0.1)',
                                             yaxis=dict(
                                                 range=(
-                                                    datos['snow_water_equivalent_in_start_of_day_values'].min(),
-                                                    datos['snow_water_equivalent_in_start_of_day_values'].max(),
+                                                    -3,
+                                                    fb_datos['yhat_upper'].max(),
                                                 ),
                                                 title='Snow Water Equivalent (inches)',
                                                 titlefont = dict(
@@ -373,57 +414,115 @@ dash_app.layout = html.Div(
                                                 tickfont = dict(
                                                     color='lightgrey'
                                                 ),
-                                            ),
+	                                    ),
                                             xaxis = dict(
                                                 title = 'Dates',
                                                 titlefont = dict(
-                                                    color='lightgrey'
-                                                ),
+		                                    color='lightgrey'
+		                                ),
                                                 tickfont = dict(
-                                                    color='lightgrey'
-                                                ),                                            
-                                            ),
+		                                    color='lightgrey'
+		                                ),                                            
+	                                    ),
                                             scene=dict(
                                                 xaxis=dict(
-                                                    # backgroundcolor="rgb(200, 200, 230)",
-                                                gridcolor="rgba(0,0,0, 0.1)",
-                                                    showbackground=True,
-                                                    zerolinecolor="rgba(0,0,0)",
-                                                    tickwidth=1,
-                                                    tickfont=dict(
-                                                        color="white",
-                                                    ),
-                                                ),
+		                                    # backgroundcolor="rgb(200, 200, 230)",
+		                                    gridcolor="rgba(0,0,0, 0.1)",
+		                                    showbackground=True,
+		                                    zerolinecolor="rgba(0,0,0)",
+		                                    tickwidth=1,
+		                                    tickfont=dict(
+			                                color="white",
+		                                    ),
+		                                ),
                                                 yaxis=dict(
-                                                    # backgroundcolor="rgb(200, 200, 230)",
-                                                gridcolor="rgba(0,0,0, 0.1)",
-                                                    showbackground=False,
-                                                    zerolinecolor="rgba(0,0,0,0.1)",
-                                                    tickwidth=1,
-                                                    tickfont=dict(
-                                                        color="white",
-                                                    ),
-                                                    title='Snow Water Equivalent'
-                                                ),                            
-                                            ),
+		                                    # backgroundcolor="rgb(200, 200, 230)",
+		                                    gridcolor="rgba(0,0,0, 0.1)",
+		                                    showbackground=False,
+		                                    zerolinecolor="rgba(0,0,0,0.1)",
+		                                    tickwidth=1,
+		                                    tickfont=dict(
+			                                color="white",
+		                                    ),
+		                                    title='Snow Water Equivalent'
+		                                ),
+	                                    ),
                                         ),
                                     ),
                                 ),
-                            ],style={
-                                "border-style": "solid",
-                                "width": "100%"
+                            ], style={
+                            "border-style": "solid",
+                            "width": "100%"
                             },
                         ),
-                    ],style={
-                        "border-style": "solid",
-                        "width": "80%",
-                        "height": "94%"
-                    },
+                ],style={
+                    "border-style": "solid",
+                    "width": "80%",
+                    "height": "94%"
+                },
                 ),
             ],
         ),
     ],
 )
+
+@dash_app.callback(
+    Output("forecast-graph", "figure"),
+    [
+        Input("state-dropdown", "value"),
+        Input("site-dropdown", "value")
+]
+)
+def fbprophet_update(state_value, site_value):
+    sql_command = f'''SELECT * FROM snotel_fbprophet 
+    WHERE state='{state_value}' AND site_name='{site_value}' '''
+    
+    fb_datos = query_load_data(sql_command).sort_values(by='date')
+
+    fb_datos.loc[fb_datos['yhat']<0, 'yhat'] = 0
+    upper_bound = go.Scatter(
+        name='Upper Bound',
+        x=fb_datos['date'],
+        y=fb_datos['yhat_upper'],
+        mode='lines',
+        marker=dict(color='#444'),
+        line=dict(width=0),
+        fillcolor='rgba(200, 5, 214, 0.3)',#'rgba(68,68,68,0.3)',
+        fill='tonexty'
+    )
+    
+    trace = go.Scatter(
+        name='Yhat',
+        x=fb_datos['date'],
+        y=fb_datos['yhat'],
+        mode='lines',
+        line=dict(color='rgb(31, 119, 180)'),
+        fillcolor='rgba(68, 68, 68, 0.3)',
+        fill='tonexty'
+    )
+
+    lower_bound = go.Scatter(
+        name='Lower Bound',
+        x=fb_datos['date'],
+        y=fb_datos['yhat_lower'],
+        mode='lines',
+        marker=dict(color='#444'),
+        line=dict(width=0),
+        fillcolor='rgba(200, 5, 214, 0.3)', #'rgba(68, 68, 68, 0.3)',
+    )
+
+    figure=dict(
+        data=[
+            upper_bound,
+            trace,
+            lower_bound
+        ],
+    )
+
+    return figure
+
+    
+    
 
 @dash_app.callback(
     Output("snotel_map", "figure"),
