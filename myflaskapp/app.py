@@ -273,7 +273,7 @@ dash_app.layout = html.Div(
                                     #             ]['site_id'].map(str)
                                     #     )
                                     ],
-                                    # value='Bogus Basin 978'
+                                    value=''
                                 ),
                             ],
                         ),
@@ -317,7 +317,7 @@ dash_app.layout = html.Div(
                             children = [
                                 html.H4('Measured SWE'),
                                 dcc.Graph(
-                                    id='example-graph',
+                                    id='swe-plot',
                                     animate=True,
                                     figure=dict(
                                         data=[
@@ -481,8 +481,15 @@ dash_app.layout = html.Div(
 ]
 )
 def fbprophet_update(state_value, site_value):
+
+    if len(site_value.split(" ")) >= 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+    site_id = site_value.split(" ")[-1]    
+    
     sql_command = f'''SELECT * FROM snotel_fbprophet 
-    WHERE state='{state_value}' AND site_name='{site_value}' '''
+    WHERE state='{state_value}' AND site_name='{site_name}' '''
     
     fb_datos = query_load_data(sql_command).sort_values(by='date')
 
@@ -607,10 +614,11 @@ def update_snotel_map(state_value, site_value):
 
 
 @dash_app.callback(
-    Output("site-dropdown", "options"),
+    [Output("site-dropdown", "options"),
+    Output("site-dropdown", "value")],
     [Input("state-dropdown", "value")]
 )
-def update_site_dropdown(state):
+def update_site_dropdown(state_value):
     cols = [
         'date',
         'snow_water_equivalent_in_start_of_day_values',
@@ -625,29 +633,34 @@ def update_site_dropdown(state):
     ]
 
     sql_command = f'''SELECT {', '.join([str(col) for col
-    in [*cols]])} FROM snotel WHERE state='{state}' '''
+    in [*cols]])} FROM snotel WHERE state='{state_value}' '''
 
     datos = query_load_data(sql_command).sort_values(by='date')
     datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
 
-    return [
-    {'label': i, 'value': i + " " + j}
-    for i, j in sorted(
-            zip(
-                datos.loc[
-                    datos['state'] == state
-                ]['site_name'],
-                datos.loc[
-                    datos['state'] == state
-                ]['site_id'].map(str)
-            )
-    )
-]
+    tmp = datos[
+        ['state','site_id','site_name']
+    ].drop_duplicates().sort_values(by='site_name')
+
+    options = [ {'label': " ".join(i), 'value': " ".join(i)}
+        for i in sorted(
+                    zip(
+                        tmp.loc[
+                            tmp['state'] == state_value
+                        ]['site_name'],
+                        tmp.loc[
+                            tmp['state'] == state_value
+                        ]['site_id'].map(str)
+                    )
+        )
+    ]
+    value = options[0]
+    return  options, value['value']
 
 
 
 @dash_app.callback(
-    Output("example-graph", "figure"),
+    Output("swe-plot", "figure"),
     [
         Input("state-dropdown", "value"),
         Input("site-dropdown", "value"),        
@@ -661,7 +674,7 @@ def update_graph_scatter(state_value, site_value, year):
 
     data = []                   # setup data for callback
 
-    if len(site_value.split(" ")) > 3:
+    if len(site_value.split(" ")) >= 3:
         site_name = " ".join(site_value.split(" ")[:-1])
     else:
         site_name = site_value.split(" ")[0]
