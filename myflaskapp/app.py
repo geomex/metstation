@@ -86,9 +86,11 @@ estados = query_load_data(
 
 state = 'ID'
 site = 'Bogus Basin'
+site_id = '978'
 
 sql_command = f'''SELECT {', '.join([str(col) for col
-in [*cols]])} FROM snotel WHERE state='{state}'  AND site_name='{site}' '''
+in [*cols]])} FROM snotel WHERE state='{state}'  AND site_name='{site}' 
+AND site_id='{site_id}' '''
 
 datos = query_load_data(sql_command).sort_values(by='date')
 datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
@@ -261,12 +263,17 @@ dash_app.layout = html.Div(
                                 dcc.Dropdown(
                                     id="site-dropdown",                                    
                                     options=[
-                                        {'label': i, 'value': i}
-                                        for i in datos.loc[
-                                                datos['state'] == state
-                                        ]['site_name'].sort_values().unique()
+                                    #     {'label': i, 'value': i + " " + j}
+                                    #     for i, j in zip(
+                                    #             datos.loc[
+                                    #                 datos['state'] == state
+                                    #             ]['site_name'],
+                                    #             datos.loc[
+                                    #                 datos['state'] == state
+                                    #             ]['site_id'].map(str)
+                                    #     )
                                     ],
-                                    # value='Bogus Basin'
+                                    # value='Bogus Basin 978'
                                 ),
                             ],
                         ),
@@ -543,12 +550,19 @@ def update_snotel_map(state_value, site_value):
 
     datos_locs = query_load_data(sql_command)
 
+
+    if len(site_value.split(" ")) >= 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+    site_id = site_value.split(" ")[-1]
+    
     site_lat, site_lon = zip(
         *datos_locs.loc[
-            datos_locs['site_name'].str.contains(site_value)
+            datos_locs['site_name'].str.contains(site_name) &
+            datos_locs['site_name'].str.contains(site_id)
         ][['lat','lon']].values
     )
-
     
     data=[
         go.Scattermapbox(
@@ -617,11 +631,18 @@ def update_site_dropdown(state):
     datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
 
     return [
-        {'label': i, 'value': i}
-        for i in datos.loc[
-                datos['state'] == state
-        ]['site_name'].unique()
-    ]
+    {'label': i, 'value': i + " " + j}
+    for i, j in sorted(
+            zip(
+                datos.loc[
+                    datos['state'] == state
+                ]['site_name'],
+                datos.loc[
+                    datos['state'] == state
+                ]['site_id'].map(str)
+            )
+    )
+]
 
 
 
@@ -640,9 +661,15 @@ def update_graph_scatter(state_value, site_value, year):
 
     data = []                   # setup data for callback
 
-
+    if len(site_value.split(" ")) > 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+        
+    site_id = site_value.split(" ")[-1]
     sql_command = f'''SELECT {', '.join([str(col) for col
-    in [*cols]])} FROM snotel WHERE state='{state_value}' AND site_name='{site_value}' '''
+    in [*cols]])} FROM snotel WHERE state='{state_value}'
+    AND site_name='{site_name}' AND site_id='{site_id}' '''
 
     datos = query_load_data(sql_command).sort_values(by='date')
     datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))    
