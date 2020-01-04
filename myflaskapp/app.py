@@ -167,8 +167,6 @@ dash_app.layout = html.Div(
                         height='16%',
                         width='16%'
                     )
-                    # width=200,
-                    # height=200,
                 ),
                 html.Img(
                     id="bsulogo",
@@ -185,9 +183,9 @@ dash_app.layout = html.Div(
                 ),
             ],
         ),
-        # ---------- #
-        # Container  #
-        # ---------- #
+        # ---------------------- #
+        # Left Column Container  #
+        # ---------------------- #
         html.Div(
             id="app-container",
             children=[
@@ -737,4 +735,4 @@ def update_graph_scatter(state_value, site_value, year):
 
 
 if __name__ == "__main__":
-    dash_app.run_server(debug=True, port=8000)
+    dash_app.run_server(debug=False, port=8000)
