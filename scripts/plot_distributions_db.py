@@ -7,6 +7,7 @@ from os.path import abspath
 import sys
 import psycopg2
 import pandas as pd
+import datetime as dt
 if not abspath('../utils/') in sys.path:
     sys.path.append(abspath('../utils/'))
     from myconfig import db_config
@@ -29,117 +30,199 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 dash_app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-
-sql_command = f"SELECT * FROM snotel_fbprophet WHERE state='ID' AND site_name='Bogus Basin' "
+state = 'ID'
+sql_command = f'''SELECT * FROM snotel 
+WHERE state='{state}'
+AND snow_water_equivalent_in_start_of_day_values > 0 '''
 
 datos = query_load_data(sql_command).sort_values(by='date')
 
-datos.loc[datos['yhat']<0, 'yhat'] = 0
-upper_bound = go.Scatter(
-    name='Upper Bound',
-    x=datos['date'],
-    y=datos['yhat_upper'],
-    mode='lines',
-    marker=dict(color='#444'),
-    line=dict(width=0),
-    fillcolor='rgba(68,68,68,0.3)',
-    fill='tonexty'
+year_value = (2011, 2015)
+datos['site_name_id'] = datos['site_name'] + " " + datos['site_id'].astype(str)
+datos['year'] = datos\
+    .date\
+    .map(
+        lambda x: int(x.strftime('%Y'))
+    )
+
+
+mask = (
+    (datos['year'] > year_value[0]) &
+    (datos['year'] < year_value[1])
 )
 
-trace = go.Scatter(
-    name='Yhat',
-    x=datos['date'],
-    y=datos['yhat'],
-    mode='lines',
-    line=dict(color='rgb(31, 119, 180)'),
-    fillcolor='rgba(68, 68, 68, 0.3)',
-    fill='tonexty'
+YEARS = list(datos['year'].unique())
+
+datos=datos.loc[mask]
+
+
+import plotly.express as px
+# hist = px.histogram(
+#     datos,
+#     x="snow_water_equivalent_in_start_of_day_values",
+#     # marginal="box"
+# )
+
+
+
+hist = go.Histogram(
+    name='SWE Distributions',
+    x=datos['snow_water_equivalent_in_start_of_day_values'],
+    histnorm='probability',
+    # marginal="box"
+    # color='site_name_id'
 )
 
 
-lower_bound = go.Scatter(
-    name='Lower Bound',
-    x=datos['date'],
-    y=datos['yhat_lower'],
-    mode='lines',
-    marker=dict(color='#444'),
-    line=dict(width=0),
-    fillcolor='rgba(68,68,68,0.3)',
-)
-
-
-
-plot_variable = 'yhat_upper'
 dash_app.layout = html.Div(
-    id="root",
+    id="state-swe_dist",
     children = [
-        dcc.Graph(
-            figure=dict(
-                data=[
-                    upper_bound,
-                    trace,
-                    lower_bound
-                    #     dict(
-                    #         x=datos['date'],
-                    #         y=datos[plot_variable],
-                    #         type='scatter',
-                    #     )
-                ],
-                layout=go.Layout(
-                    # title = f'{datos["state"].unique()[0]}:' + \
-                    # f' {datos["site_name"].unique()[0]}',
-                    paper_bgcolor = 'rgba(0,0,0,0)',
-                    plot_bgcolor = 'rgba(0,0,0,0.1)',
-                    yaxis=dict(
-                        range=(
-                            -3,
-                            datos[plot_variable].max(),
-                        ),
-                        title='Snow Water Equivalent (inches)',
-                        titlefont = dict(
-                            color='lightgrey'
-                        ),
-                        tickfont = dict(
-                            color='lightgrey'
-                        ),
-	            ),
-                    xaxis = dict(
-                        title = 'Dates',
-                        titlefont = dict(
-		            color='lightgrey'
-		        ),
-                        tickfont = dict(
-		            color='lightgrey'
-		        ),                                            
-	            ),
-                    scene=dict(
-                        xaxis=dict(
-		            # backgroundcolor="rgb(200, 200, 230)",
-		            gridcolor="rgba(0,0,0, 0.1)",
-		            showbackground=True,
-		            zerolinecolor="rgba(0,0,0)",
-		            tickwidth=1,
-		            tickfont=dict(
-			        color="white",
-		            ),
-		        ),
-                        yaxis=dict(
-		            # backgroundcolor="rgb(200, 200, 230)",
-		            gridcolor="rgba(0,0,0, 0.1)",
-		            showbackground=False,
-		            zerolinecolor="rgba(0,0,0,0.1)",
-		            tickwidth=1,
-		            tickfont=dict(
-			        color="white",
-		            ),
-		            title='Snow Water Equivalent'
-		        ),                            
-	            ),
+        html.Div(
+            id='daterange-container',
+            children=[
+                dcc.RangeSlider(
+                    id="years-slider",
+                    min=min(YEARS),
+                    max=max(YEARS),
+                    value=[min(YEARS), max(YEARS)],
+                    marks={
+                        str(year): {
+                            "label": str(year),
+                            "style": {
+                                "color": "#7fafdf",
+                                "writing-mode": "vertical-rl"
+                            },
+                        }
+                        for year in YEARS                                        
+                    },
                 ),
-            ),
+            ],
+        ),
+        html.Br(),html.Br(),
+        html.Div(
+            id='datepicker-container',
+            children = [
+                dcc.DatePickerRange(
+                    id='datepickerrange',
+                    start_date=datos['date'].min(),
+                    end_date=datos['date'].max(),
+                    display_format='MMM D YYYY',
+                    number_of_months_shown=2,
+                    updatemode='bothdates',
+                    end_date_placeholder_text="End Period",
+                ),
+            ],
+        ),        
+        html.Div(
+            id='swe-dist-container',
+            children=[
+                dcc.Graph(
+                    id='swe-dist',
+                    figure=dict(),
+                ),
+            ],
         ),
     ],
 )
+
+@dash_app.callback(
+    [Output('datepickerrange', 'start_date'),
+     Output('datepickerrange', 'end_date')],
+     # Output('datepickerrange', 'min_date_allowed'),
+     # Output('datepickerrange', 'max_date_allowed')],
+    [Input('years-slider','value')]
+)
+def datepicker_update(anos):
+    state = 'ID'
+    start_date = dt.datetime.strptime('10/01/' + str(anos[0]), '%m/%d/%Y') #dias['min'].tolist()[0]
+    end_date =  dt.datetime.strptime('09/30/' + str(anos[1]), '%m/%d/%Y') #dias['max'].tolist()[0]
+    sql_command = f'''SELECT MIN(date), MAX(date) 
+    from snotel WHERE state='ID' AND date BETWEEN 
+    '{start_date}' AND '{end_date}';'''
+    dias = query_load_data(sql_command).dropna()
+    min_date_allowed = dias['min'].tolist()[0]
+    max_date_allowed =  dias['max'].tolist()[0]    
+    return [start_date, end_date] #, min_date_allowed, max_date_allowed
+
+@dash_app.callback(
+    Output('swe-dist', 'figure'),
+    [Input('datepickerrange','start_date'),
+     Input('datepickerrange', 'end_date')]
+)
+def swe_dist_update(start_date, end_date):
+    if type(start_date) is dt.datetime:
+        start_date = start_date.strftime('%m/%d/%Y')
+    if type(end_date) is dt.datetime:
+        end_date = end_date.strftime('%m/%d/%Y')
+        
+    state = 'ID'
+    sql_command = f'''SELECT * FROM snotel 
+    WHERE state='{state}'
+    AND snow_water_equivalent_in_start_of_day_values > 0 
+    AND date between  '{start_date}' AND '{end_date}' '''
+    
+    datos = query_load_data(sql_command).sort_values(by='date')
+    
+    hist = go.Histogram(
+        name='SWE Distributions',
+        x=datos['snow_water_equivalent_in_start_of_day_values'],
+        histnorm='probability',
+    )
+    
+    figure=dict(
+        data=[hist],
+        layout=go.Layout(
+            title=dict(
+                text=state
+            ),
+            paper_bgcolor = 'rgba(0,0,0,0)',
+            plot_bgcolor = 'rgba(0,0,0,0)',
+            scene=dict(
+                xaxis=dict(
+                    gridcolor="rgba(0,0,0, 0.1)",
+                    showbackground=True,
+                    zeroline=True,
+                    zerolinecolor="rgba(0,0,0)",
+                    tickwidth=1,
+                    tickfont=dict(
+                        color="black",
+                    ),
+                ),
+                yaxis=dict(
+                    backgroundcolor="rgb(200, 200, 230)",
+                    gridcolor="rgba(0,0,0, 0.1)",
+                    showbackground=False,
+                    zeroline=True,
+                    zerolinecolor="rgba(0,0,0,0.1)",
+                    tickwidth=1,
+                    tickfont=dict(
+                        color="black",
+                    ),
+                ),
+            ),
+            yaxis=dict(
+	        title=dict(
+                    text='Probability',
+                    font=dict(
+                        color='#7f7f7f'
+                    ),
+                ),
+            ),
+            xaxis=dict(
+		title=dict(
+                    text='Snow Water Equivalent [inches]',
+                    font=dict(
+                        color='#7f7f7f'
+                    ),
+                ),
+            ),
+            margin=dict(
+                t=0, b=30, r=0, l=40
+            )  
+        ),
+    )
+    
+    return figure
 
 
 if __name__ == "__main__":
