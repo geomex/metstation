@@ -74,6 +74,19 @@ follow the questions prompted.
 python snotel_webcrawler
 ```
 
+#### Setting up a Local Postgres Instance
+
+... comming soon 
+
+#### Running a Local Instance of Postgres
+
+To run a local instance of postgresql you'll need to run the 
+following command after setting up the Database
+
+```
+pg_ctl -D /usr/local/var/postgres start
+```
+
 
 ## Plotly Dash Instructions
 
