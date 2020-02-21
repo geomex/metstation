@@ -298,6 +298,7 @@ h5 {
     letter-spacing: -.05rem;
     margin-bottom: 0.6rem;
     margin-top: 0.6rem;
+    text-align: center;
 }
 
 h6 {
@@ -330,7 +331,7 @@ p {
     margin-bottom: 2rem;
 }
 
-#slider-text, #chart-selector {
+#slider-text, #chart-selector, #swe-daterange-text {
     margin-bottom: 2rem !important;
     font-size: 2rem;
 }
@@ -639,6 +640,25 @@ hr {
     clear: both;
 }
 
+/* SWE DISTRIBUTION SLIDER */
+#daterange-container {
+    background-color: #252e3f;
+    padding: 2rem 6rem 4rem 4rem;
+    height: 8rem;
+}
+
+.rc-slider-dot-active, .rc-slider-handle {
+    border-color: #2cfec1 !important;
+}
+
+.rc-slider-track {
+    background-color: #2cfec1 !important
+}
+
+.rc-slider-rail {
+    background-color: #1d2731 !important
+}
+
 /* Slider
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 
@@ -660,6 +680,16 @@ hr {
     background-color: #1d2731 !important
 }
 
+/* Date Picker */
+
+#datepicker-container{
+    align-content: center;
+    horizontal-align: middle;
+}
+
+.center{
+    text-align: center;
+}
 /* Heatmap
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 #heatmap-container {
@@ -679,7 +709,7 @@ hr {
 
 @media (min-width: 1251px) {
     #heatmap-container {
-        flex-grow: 1;
+        /* flex-grow: 1; */
         display: flex;
         flex-direction: column;
         justify-content: flex-start;

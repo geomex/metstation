@@ -15,6 +15,7 @@ import pandas as pd
 # import dash_bootstrap_components as dbc
 from os.path import abspath
 import sys
+import datetime as dt
 from flask_app import my_app
 
 
@@ -48,7 +49,7 @@ def query_load_data(sql_command=None):
     conn = psycopg2.connect(
         host=db_config['host'],
         user=db_config['user'],
-        password='',
+        password=db_config['password'],
         dbname=db_config['dbname']
     )
     
@@ -86,9 +87,11 @@ estados = query_load_data(
 
 state = 'ID'
 site = 'Bogus Basin'
+site_id = '978'
 
 sql_command = f'''SELECT {', '.join([str(col) for col
-in [*cols]])} FROM snotel WHERE state='{state}'  AND site_name='{site}' '''
+in [*cols]])} FROM snotel WHERE state='{state}'  AND site_name='{site}' 
+AND site_id='{site_id}' '''
 
 datos = query_load_data(sql_command).sort_values(by='date')
 datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
@@ -99,7 +102,7 @@ WHERE state='{state}' AND site_name='{site}' '''
 
 fb_datos = query_load_data(sql_command).sort_values(by='date')
 
-fb_datos.loc[fb_datos['yhat']<0, 'yhat'] = 0
+fb_datos.loc[fb_datos['yhat'] < 0, 'yhat'] = 0
 upper_bound = go.Scatter(
     name='Upper Bound',
     x=fb_datos['date'],
@@ -132,6 +135,13 @@ lower_bound = go.Scatter(
     fillcolor='rgba(68,68,68,0.3)',
 )
 
+hist = go.Histogram(
+    name='SWE Distributions',
+    x=datos['snow_water_equivalent_in_start_of_day_values'],
+    histnorm='probability',
+    # marginal="box"
+    # color='site_name_id'
+)
 
 # --------------- #
 # Query Locations #
@@ -157,6 +167,14 @@ dash_app.layout = html.Div(
             id="header",
             children=[
                 html.Img(
+                    id="nasalogo",
+                    src=dash_app.get_asset_url("nasa_logo.png"),
+                    style = dict(
+                        height='6%',
+                        width='6%'
+                    )
+                ),
+                html.Img(
                     id="logo",
                     src=dash_app.get_asset_url(
                         "eri_2018_logo_stacked_medium_white.png"
@@ -165,8 +183,6 @@ dash_app.layout = html.Div(
                         height='16%',
                         width='16%'
                     )
-                    # width=200,
-                    # height=200,
                 ),
                 html.Img(
                     id="bsulogo",
@@ -183,9 +199,9 @@ dash_app.layout = html.Div(
                 ),
             ],
         ),
-        # ---------- #
-        # Container  #
-        # ---------- #
+        # ---------------------- #
+        # Left Column Container  #
+        # ---------------------- #
         html.Div(
             id="app-container",
             children=[
@@ -214,11 +230,7 @@ dash_app.layout = html.Div(
                                     ],
                                     value='ID'
                                 ),
-                            ],style = {
-                                "border-style": "solid",
-                                "height": "10%",
-                                "width": "100%",
-                            },
+                            ],
                         ),
                         html.Div(
                             id="heatmap-container",
@@ -229,7 +241,11 @@ dash_app.layout = html.Div(
                                 ),
                                 dcc.Graph(
                                     id="snotel_map",
-                                    figure=dict(),
+                                    figure=dict(
+                                        layout=go.Layout(
+                                            margin={'b': 0}
+                                        )
+                                    ),
                                 ),
                             ],#style = {
                             #     "border-style": "solid",
@@ -238,7 +254,84 @@ dash_app.layout = html.Div(
                             #     "fontsize":16
                             # },
                         ),
-                    ],
+                        # html.Div(
+                        #     id="state-swe-dist-container",
+                        #     children = [
+                        #         html.H5('State SWE Distribution'),
+                        #         dcc.Graph(
+                        #             id='state-swe-dist',
+                        #             figure=dict(),
+                        #         ),
+                        #     ],
+                        # ),
+                        html.Br(),
+                        html.Div(
+                            id="year-state-swe-dist",
+                            children = [
+                                html.H5(
+                                    'State SWE Distribution by Date'
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            id='daterange-container',
+                            children=[
+                                html.P(
+                                    id="swe-daterange-text",
+                                    children="Drag the slider to change the year:",
+                                ),                                        
+                                dcc.RangeSlider(
+                                    id="swe-dist-years-slider",
+                                    min=min(YEARS),
+                                    max=max(YEARS),
+                                    value=[min(YEARS), max(YEARS)],
+                                    marks={
+                                        str(year): {
+                                            "label": str(year),
+                                            "style": {
+                                                "color": "#7fafdf",
+                                                "writing-mode": "vertical-rl"
+                                            },
+                                        }
+                                        for year in YEARS                                        
+                                    },
+                                ),
+                            ], # style={
+                            #     'text-orientation': 'sideways', 
+                            #     "border-style": "solid",
+                            #     # 'height':'100%'
+                            # },
+                        ),
+                        html.Br(), html.Br(),
+                        html.Div(
+                            id='datepicker-container',
+                            children = [
+                                dcc.DatePickerRange(
+                                    id='swe-dist-datepickerrange',
+                                    start_date=datos['date'].min(),
+                                    end_date=datos['date'].max(),
+                                    display_format='MMM D YYYY',
+                                    number_of_months_shown=2,
+                                    updatemode='bothdates',
+                                    end_date_placeholder_text="End Period",
+                                ),
+                            ],style={"padding-left": '25%'}
+                        ),
+                        html.Br(), html.Br(),
+                        html.Div(
+                            id='swe-dist-container',
+                            children=[
+                                dcc.Graph(
+                                    id='swe-dist',
+                                    figure=dict(),
+                                ),
+                            ],
+                        ),
+                    ],style = {
+                        "border-style": "solid",
+                        "height": "210%",
+                        "width": "100%",
+                    },
                 ),
                 # ---------- #
                 # SWE Curves #
@@ -261,12 +354,8 @@ dash_app.layout = html.Div(
                                 dcc.Dropdown(
                                     id="site-dropdown",                                    
                                     options=[
-                                        {'label': i, 'value': i}
-                                        for i in datos.loc[
-                                                datos['state'] == state
-                                        ]['site_name'].sort_values().unique()
                                     ],
-                                    value='Bogus Basin'
+                                    value=''
                                 ),
                             ],
                         ),
@@ -296,21 +385,19 @@ dash_app.layout = html.Div(
                                         for year in YEARS                                        
                                     },
                                 ),
-                            ],
-                            style={
-                                'text-orientation': 'sideways', 
-                                "border-style": "solid",
-                            },
+                            ],#style={
+                            #     'text-orientation': 'sideways', 
+                            #     "border-style": "solid",
+                            # },
                         ),
-                        
                         # ----------------- #
                         # Snotel Swe Curves #
                         # ----------------- #                        
                         html.Div(
                             children = [
-                                html.H4('Measured SWE'),
+                                html.H5('Measured SWE for Snotel Site Selected'),
                                 dcc.Graph(
-                                    id='example-graph',
+                                    id='swe-plot',
                                     animate=True,
                                     figure=dict(
                                         data=[
@@ -321,9 +408,7 @@ dash_app.layout = html.Div(
                                             )
                                         ],
                                         layout=go.Layout(
-                                            # title = f'{datos["state"].unique()[0]}:' + \
-                                            # f' {datos["site_name"].unique()[0]}',
-                                        paper_bgcolor = 'rgba(0,0,0,0)',
+                                            paper_bgcolor = 'rgba(0,0,0,0)',
                                             plot_bgcolor = 'rgba(0,0,0,0.1)',
                                             yaxis=dict(
                                                 range=(
@@ -350,7 +435,7 @@ dash_app.layout = html.Div(
                                             scene=dict(
                                                 xaxis=dict(
                                                     # backgroundcolor="rgb(200, 200, 230)",
-                                                gridcolor="rgba(0,0,0, 0.1)",
+                                                    gridcolor="rgba(0,0,0, 0.1)",
                                                     showbackground=True,
                                                     zerolinecolor="rgba(0,0,0)",
                                                     tickwidth=1,
@@ -358,9 +443,9 @@ dash_app.layout = html.Div(
                                                         color="white",
                                                     ),
                                                 ),
-                                                 yaxis=dict(
+                                                yaxis=dict(
                                                     # backgroundcolor="rgb(200, 200, 230)",
-                                                gridcolor="rgba(0,0,0, 0.1)",
+                                                    gridcolor="rgba(0,0,0, 0.1)",
                                                     showbackground=False,
                                                     zerolinecolor="rgba(0,0,0,0.1)",
                                                     tickwidth=1,
@@ -374,7 +459,10 @@ dash_app.layout = html.Div(
                                         ),
                                     ),
                                 ),
-                            ],
+                            ], #style={
+                            #     'text-orientation': 'sideways', 
+                            #     "border-style": "solid",
+                            # },
                         ),
                         # ----------------------- #
                         # Prophet Swe Predictions #
@@ -382,7 +470,7 @@ dash_app.layout = html.Div(
                         html.Div(
                             # id="root",
                             children = [
-                                html.H4('Prophet Forecast'),        
+                                html.H5('Prophet Forecast'),        
                                 dcc.Graph(
                                     id='forecast-graph',
                                     animate=True,
@@ -391,132 +479,358 @@ dash_app.layout = html.Div(
                                             upper_bound,
                                             trace,
                                             lower_bound
-                                            #     dict(
-                                            #         x=fb_datos['date'],
-                                            #         y=fb_datos[plot_variable],
-                                            #         type='scatter',
-                                            #     )
                                         ],
                                         layout=go.Layout(
-                                            # title = f'{fb_datos["state"].unique()[0]}:' + \
-                                            # f' {fb_datos["site_name"].unique()[0]}',
-                                            paper_bgcolor = 'rgba(0,0,0,0)',
-                                            plot_bgcolor = 'rgba(0,0,0,0.1)',
-                                            yaxis=dict(
-                                                range=(
-                                                    -3,
-                                                    fb_datos['yhat_upper'].max(),
-                                                ),
-                                                title='Snow Water Equivalent (inches)',
-                                                titlefont = dict(
-                                                    color='lightgrey'
-                                                ),
-                                                tickfont = dict(
-                                                    color='lightgrey'
-                                                ),
-	                                    ),
-                                            xaxis = dict(
-                                                title = 'Dates',
-                                                titlefont = dict(
-		                                    color='lightgrey'
-		                                ),
-                                                tickfont = dict(
-		                                    color='lightgrey'
-		                                ),                                            
-	                                    ),
-                                            scene=dict(
-                                                xaxis=dict(
-		                                    # backgroundcolor="rgb(200, 200, 230)",
-		                                    gridcolor="rgba(0,0,0, 0.1)",
-		                                    showbackground=True,
-		                                    zerolinecolor="rgba(0,0,0)",
-		                                    tickwidth=1,
-		                                    tickfont=dict(
-			                                color="white",
-		                                    ),
-		                                ),
-                                                yaxis=dict(
-		                                    # backgroundcolor="rgb(200, 200, 230)",
-		                                    gridcolor="rgba(0,0,0, 0.1)",
-		                                    showbackground=False,
-		                                    zerolinecolor="rgba(0,0,0,0.1)",
-		                                    tickwidth=1,
-		                                    tickfont=dict(
-			                                color="white",
-		                                    ),
-		                                    title='Snow Water Equivalent'
-		                                ),
-	                                    ),
+                                        #     paper_bgcolor = 'rgba(0,0,0,0)',
+                                        #     plot_bgcolor = 'rgba(0,0,0,0.1)',
+                                        #     yaxis=dict(
+                                        #         range=(
+                                        #             -3,
+                                        #             fb_datos['yhat_upper'].max(),
+                                        #         ),
+                                        #         title='Snow Water Equivalent (inches)',
+                                        #         titlefont = dict(
+                                        #             color='lightgrey'
+                                        #         ),
+                                        #         tickfont = dict(
+                                        #             color='lightgrey'
+                                        #         ),
+                                        #     ),
+                                        #     xaxis = dict(
+                                        #         title = 'Dates',
+                                        #         titlefont = dict(
+                                        #             color='lightgrey'
+                                        #         ),
+                                        #         tickfont = dict(
+                                        #             color='lightgrey'
+                                        #         ),
+                                        #     ),
+                                        #     scene=dict(
+                                        #         xaxis=dict(
+                                        #             gridcolor="rgba(0,0,0, 0.1)",
+                                        #             showbackground=True,
+                                        #             zerolinecolor="rgba(0,0,0)",
+                                        #             tickwidth=1,
+                                        #             tickfont=dict(
+                                        #                 color="white",
+                                        #             ),
+                                        #         ),
+                                        #         yaxis=dict(
+                                        #             gridcolor="rgba(0,0,0, 0.1)",
+                                        #             showbackground=False,
+                                        #             zerolinecolor="rgba(0,0,0,0.1)",
+                                        #             tickwidth=1,
+                                        #             tickfont=dict(
+                                        #                 color="white",
+                                        #             ),
+                                        #             title='Snow Water Equivalent'
+                                        #         ),
+                                        #     ),
+                                            margin={'t':0, 'b': 0},                                            
                                         ),
                                     ),
                                 ),
-                            ], style={
-                            "border-style": "solid",
-                            "width": "100%"
-                            },
+                            ],
                         ),
-                ],style={
-                    "border-style": "solid",
-                    "width": "80%",
-                    "height": "94%"
-                },
+                     ],  style={
+                        "border-style": "solid",
+                        "width": "100%",
+                        "height": "150%"
+                    },
                 ),
-            ],
+            ], 
         ),
     ],
 )
+
+
+@dash_app.callback(
+    [Output('swe-dist-datepickerrange', 'start_date'),
+     Output('swe-dist-datepickerrange', 'end_date')],
+    # Output('datepickerrange', 'min_date_allowed'),
+    # Output('datepickerrange', 'max_date_allowed')],
+    [Input('swe-dist-years-slider','value')]
+)
+def datepicker_update(anos):
+    state = 'ID'
+    start_date = dt.datetime.strptime('10/01/' + str(anos[0]), '%m/%d/%Y') #dias['min'].tolist()[0]
+    end_date =  dt.datetime.strptime('09/30/' + str(anos[1]), '%m/%d/%Y') #dias['max'].tolist()[0]
+    sql_command = f'''SELECT MIN(date), MAX(date) 
+    from snotel WHERE state='ID' AND date BETWEEN 
+    '{start_date}' AND '{end_date}';'''
+    dias = query_load_data(sql_command).dropna()
+    min_date_allowed = dias['min'].tolist()[0]
+    max_date_allowed =  dias['max'].tolist()[0]    
+    return [start_date, end_date] #, min_date_allowed, max_date_allowed
+
+
+@dash_app.callback(
+    Output('swe-dist', 'figure'),
+    [Input('swe-dist-datepickerrange','start_date'),
+     Input('swe-dist-datepickerrange', 'end_date'),
+     Input('state-dropdown', 'value')]
+)
+def swe_dist_update(start_date, end_date, state_value):
+    if type(start_date) is dt.datetime:
+        start_date = start_date.strftime('%m/%d/%Y')
+    if type(end_date) is dt.datetime:
+        end_date = end_date.strftime('%m/%d/%Y')
+        
+    # state = 'ID'
+    sql_command = f'''SELECT * FROM snotel 
+    WHERE state='{state_value}'
+    AND snow_water_equivalent_in_start_of_day_values > 0 
+    AND date between  '{start_date}' AND '{end_date}' '''
+        
+    datos = query_load_data(sql_command).sort_values(by='date')
+        
+    hist = go.Histogram(
+        name='SWE Distributions',
+        x=datos['snow_water_equivalent_in_start_of_day_values'],
+        histnorm='probability',
+    )
+        
+    figure=dict(
+        data=[hist],
+        layout=go.Layout(
+            # title=dict(
+            #     text=state_value
+            # ),
+            paper_bgcolor = 'rgba(0,0,0,0)',
+            plot_bgcolor = 'rgba(0,0,0,0)',
+            scene=dict(
+                xaxis=dict(
+                    gridcolor="rgba(0,0,0, 0.1)",
+                    showbackground=True,
+                    zeroline=True,
+                    zerolinecolor="rgba(0,0,0)",
+                    tickwidth=1,
+                    tickfont=dict(
+                        color="black",
+                    ),
+                ),
+                yaxis=dict(
+                    backgroundcolor="rgb(200, 200, 230)",
+                    gridcolor="rgba(0,0,0, 0.1)",
+                    showbackground=False,
+                    zeroline=True,
+                    zerolinecolor="rgba(0,0,0,0.1)",
+                    tickwidth=1,
+                    tickfont=dict(
+                        color="black",
+                    ),
+                ),
+            ),
+            yaxis=dict(
+	        title=dict(
+                    text='Probability',
+                    font=dict(
+                        color='#7f7f7f'
+                    ),
+                ),
+                range=[0, 0.1],
+            ),
+            xaxis=dict(
+		title=dict(
+                    text='Snow Water Equivalent [inches]',
+                    font=dict(
+                        color='#7f7f7f'
+                    ),
+                ),
+            ),
+            margin=dict(
+                t=15, b=30, r=0, l=40
+            )  
+        ),
+    )
+        
+    return figure
+
+
+# @dash_app.callback(
+        #     Output("state-swe-dist", "figure"),
+        #     [
+        #         Input("state-dropdown", "value"),
+        #         Input("years-slider", "value")
+        #     ]
+        # )
+        # def state_swe_dist_update(state_value, year_value):
+        #     sql_command = f"SELECT * FROM snotel WHERE state='{state_value}' " + \
+        #         "AND snow_water_equivalent_in_start_of_day_values > 0"
+    
+#     temp_datos = query_load_data(sql_command).sort_values(by='date')
+        #     temp_datos['year'] = temp_datos\
+        #         .date\
+        #         .map(
+        #             lambda x: int(x.strftime('%Y'))
+        #         )
+        #     mask = (
+        #         (temp_datos['year'] > year_value[0]) &
+        #         (temp_datos['year'] < (year_value[1]))
+        #     )
+    
+#     temp_datos=temp_datos.loc[
+        #         mask
+        #     ]
+        #     # temp_datos['site_name_id'] = temp_datos['site_name']
+        #     hist = go.Histogram(
+        #         name='SWE Distributions',
+        #         x=temp_datos['snow_water_equivalent_in_start_of_day_values'],
+        #         histnorm='probability',
+        #     )
+
+#     figure=dict(
+        #         data=[hist],
+        #         layout=go.Layout(
+        #             title=dict(
+        #                 text=state_value
+        #             ),
+        #             paper_bgcolor = 'rgba(0,0,0,0)',
+        #             plot_bgcolor = 'rgba(0,0,0,0)',
+        #             scene=dict(
+        #                 xaxis=dict(
+        #                     gridcolor="rgba(0,0,0, 0.1)",
+        #                     showbackground=True,
+        #                     zeroline=True,
+        #                     zerolinecolor="rgba(0,0,0)",
+        #                     tickwidth=1,
+        #                     tickfont=dict(
+        #                         color="black",
+        #                     ),
+        #                 ),
+        #                 yaxis=dict(
+        #                     backgroundcolor="rgb(200, 200, 230)",
+        #                     gridcolor="rgba(0,0,0, 0.1)",
+        #                     showbackground=False,
+        #                     zeroline=True,
+        #                     zerolinecolor="rgba(0,0,0,0.1)",
+        #                     tickwidth=1,
+        #                     tickfont=dict(
+        #                         color="black",
+        #                     ),
+        #                 ),
+        #             ),
+        #             yaxis=dict(
+        # 	        title=dict(
+        #                     text='Probability',
+        #                     font=dict(
+        #                         color='#7f7f7f'
+        #                     ),
+        #                 ),
+        #             ),
+        #             xaxis=dict(
+        # 		title=dict(
+        #                     text='Snow Water Equivalent [inches]',
+        #                     font=dict(
+        #                         color='#7f7f7f'
+        #                     ),
+        #                 ),
+        #             ),
+        #             margin=dict(
+        #                 t=0, b=30, r=0, l=40
+        #             )
+            
+#         ),
+        #     )
+        #     return figure
 
 @dash_app.callback(
     Output("forecast-graph", "figure"),
     [
         Input("state-dropdown", "value"),
-        Input("site-dropdown", "value")
-]
+        Input("site-dropdown", "value"),
+        Input("years-slider", "value")        
+    ]
 )
-def fbprophet_update(state_value, site_value):
+def fbprophet_update(state_value, site_value, year_value):
+    if len(site_value.split(" ")) >= 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+        site_id = site_value.split(" ")[-1]    
+        
     sql_command = f'''SELECT * FROM snotel_fbprophet 
-    WHERE state='{state_value}' AND site_name='{site_value}' '''
-    
+    WHERE state='{state_value}' AND site_name='{site_name}' '''
+        
     fb_datos = query_load_data(sql_command).sort_values(by='date')
+    fb_datos.dropna(inplace=True, axis=0)
+    fb_datos['year'] = fb_datos.date.map(lambda x: int(x.strftime('%Y')))
+    
+    fb_datos = fb_datos.loc[
+        (fb_datos['year'] > year_value[0]) &
+        (fb_datos['year'] < year_value[1])
+    ]
 
     fb_datos.loc[fb_datos['yhat']<0, 'yhat'] = 0
     upper_bound = go.Scatter(
         name='Upper Bound',
-        x=fb_datos['date'],
-        y=fb_datos['yhat_upper'],
+        x=fb_datos['date'].tolist() + \
+        fb_datos.sort_values(
+            by='date', ascending=False
+        )['date'].tolist(),
+            
+        y=fb_datos['yhat_upper'].tolist() + \
+            fb_datos.sort_values(
+                by='date', ascending=False
+            )['yhat_lower'].tolist(),
+            
         mode='lines',
-        marker=dict(color='#444'),
-        line=dict(width=0),
-        fillcolor='rgba(200, 5, 214, 0.3)',#'rgba(68,68,68,0.3)',
-        fill='tonexty'
-    )
-    
+            marker=dict(color='#444'),
+            line=dict(width=0),
+            fillcolor='rgba(200, 5, 214, 0.3)',#'rgba(68,68,68,0.3)',
+            fill='tozerox'
+        )
+        
     trace = go.Scatter(
         name='Yhat',
+        
         x=fb_datos['date'],
+        # fb_datos.sort_values(
+        #     by='date', ascending=False
+        # )['date'].tolist(),
+        
         y=fb_datos['yhat'],
         mode='lines',
         line=dict(color='rgb(31, 119, 180)'),
         fillcolor='rgba(68, 68, 68, 0.3)',
-        fill='tonexty'
+        # fill='tonexty'
     )
 
-    lower_bound = go.Scatter(
-        name='Lower Bound',
-        x=fb_datos['date'],
-        y=fb_datos['yhat_lower'],
-        mode='lines',
-        marker=dict(color='#444'),
-        line=dict(width=0),
-        fillcolor='rgba(200, 5, 214, 0.3)', #'rgba(68, 68, 68, 0.3)',
+    layout = go.Layout(
+	# title = f'{state_value}: {site_name}',
+	paper_bgcolor = 'rgba(0,0,0,0)',
+	plot_bgcolor = 'rgba(0,0,0,0)',
+        scene=dict(
+            xaxis=dict(
+                backgroundcolor="rgb(200, 200, 230)",
+                gridcolor="rgba(0,0,0, 0.1)",
+                zerolinecolor="rgba(0,0,0)",                
+                showbackground=False,
+                tickwidth=1,
+                tickfont=dict(
+                    color="white",
+                ),
+            ),
+            yaxis=dict(
+                backgroundcolor="rgb(200, 200, 230)",
+                gridcolor="rgba(0,0,0, 0.1)",
+                zerolinecolor="rgba(0,0,0,0.1)",                
+                showbackground=False,
+                tickwidth=1,
+                tickfont=dict(
+                    color="white",
+                ),
+                title='SWE'
+            ),                            
+        ),            
     )
 
     figure=dict(
         data=[
             upper_bound,
-            trace,
-            lower_bound
+            trace
         ],
+        layout=layout
     )
 
     return figure
@@ -526,9 +840,12 @@ def fbprophet_update(state_value, site_value):
 
 @dash_app.callback(
     Output("snotel_map", "figure"),
-    [Input("state-dropdown", "value")]
+    [
+        Input("state-dropdown", "value"),
+        Input("site-dropdown", "value")
+    ]
 )
-def update_snotel_map(state_value):
+def update_snotel_map(state_value, site_value):
     cols = [
         'ntwk', 'state', 'site_name',
         'ts', 'start', 'lat',
@@ -540,12 +857,35 @@ def update_snotel_map(state_value):
 
     datos_locs = query_load_data(sql_command)
 
+    if len(site_value.split(" ")) >= 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+
+    site_id = site_value.split(" ")[-1]
+
+    site_lat, site_lon = zip(
+        *datos_locs.loc[
+            datos_locs['site_name'].str.contains(site_name) &
+            datos_locs['site_name'].str.contains(site_id)
+        ][['lat','lon']].values
+    )
+
     data=[
-        dict(
+        go.Scattermapbox(
             lat=datos_locs["lat"],
             lon=datos_locs["lon"],
             text=datos_locs["site_name"],
-            type="scattermapbox",
+            name='Snotel Sites'
+        ),
+        go.Scattermapbox(
+            lat=site_lat,
+            lon=site_lon,
+            text=site_value,
+            marker=go.scattermapbox.Marker(
+                size=14
+            ),
+            name=site_value
         )
     ]
 
@@ -561,40 +901,72 @@ def update_snotel_map(state_value):
             ),
             zoom=3.5,
         ),
-        autosize=True,
-        margin={'t':0, 'b':0, 'r':0, 'l':0}
+        # autosize=True,
+        margin={'t':0, 'b':0, 'r':0, 'l':0},
+        legend=dict(
+            orientation='h',
+            font=dict(
+                color='white',
+                )
+        )
     )
 
     figure = {
         'data': data,
         'layout': layout
     }
-    
+        
     return figure
 
 
 @dash_app.callback(
-    Output("site-dropdown", "options"),
+    [Output("site-dropdown", "options"),
+     Output("site-dropdown", "value")],
     [Input("state-dropdown", "value")]
 )
-def update_site_dropdown(state):
+def update_site_dropdown(state_value):
+    cols = [
+        'date',
+        'snow_water_equivalent_in_start_of_day_values',
+        'precipitation_accumulation_in_start_of_day_values',
+        'air_temperature_maximum_degf',
+        'air_temperature_minimum_degf',
+        'air_temperature_average_degf',
+        'precipitation_increment_in',
+        'site_name',
+        'site_id',
+        'state'
+    ]
+
     sql_command = f'''SELECT {', '.join([str(col) for col
-    in [*cols]])} FROM snotel WHERE state='{state}' '''
+    in [*cols]])} FROM snotel WHERE state='{state_value}' '''
 
     datos = query_load_data(sql_command).sort_values(by='date')
     datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))
 
-    return [
-        {'label': i, 'value': i}
-        for i in datos.loc[
-                datos['state'] == state
-        ]['site_name'].unique()
+    tmp = datos[
+        ['state','site_id','site_name']
+    ].drop_duplicates().sort_values(by='site_name')
+
+    options = [ {'label': " ".join(i), 'value': " ".join(i)}
+                for i in sorted(
+                        zip(
+                            tmp.loc[
+                                tmp['state'] == state_value
+                            ]['site_name'],
+                            tmp.loc[
+                                tmp['state'] == state_value
+                            ]['site_id'].map(str)
+                        )
+                )
     ]
+    value = options[0]
+    return  options, value['value']
 
 
 
 @dash_app.callback(
-    Output("example-graph", "figure"),
+    Output("swe-plot", "figure"),
     [
         Input("state-dropdown", "value"),
         Input("site-dropdown", "value"),        
@@ -608,9 +980,15 @@ def update_graph_scatter(state_value, site_value, year):
 
     data = []                   # setup data for callback
 
-
+    if len(site_value.split(" ")) >= 3:
+        site_name = " ".join(site_value.split(" ")[:-1])
+    else:
+        site_name = site_value.split(" ")[0]
+        
+    site_id = site_value.split(" ")[-1]
     sql_command = f'''SELECT {', '.join([str(col) for col
-    in [*cols]])} FROM snotel WHERE state='{state_value}' AND site_name='{site_value}' '''
+    in [*cols]])} FROM snotel WHERE state='{state_value}'
+    AND site_name='{site_name}' AND site_id='{site_id}' '''
 
     datos = query_load_data(sql_command).sort_values(by='date')
     datos['year'] = datos.date.map(lambda x: int(x.strftime('%Y')))    
@@ -653,9 +1031,11 @@ def update_graph_scatter(state_value, site_value, year):
                 ),
                 title='SWE'
             ),                            
-        ),            
+        ),
+        autosize=True,
+        margin={'t': 0}
     )
-
+    
     figure = {
         'data': data,
         'layout': layout
@@ -665,4 +1045,4 @@ def update_graph_scatter(state_value, site_value, year):
 
 
 if __name__ == "__main__":
-    dash_app.run_server(debug=True, port=8000)
+        dash_app.run_server(debug=True, port=8000)
