@@ -41,6 +41,7 @@ def is_logged_in(f):
             return redirect(url_for('login'))
     return wrap
 
+
 @my_app.route('/logout', methods=['GET', 'POST'])
 @is_logged_in
 def logout():
@@ -48,20 +49,17 @@ def logout():
     flash('You are now logged out', 'success')
     return redirect(url_for('login'))
 
+
 @my_app.route('/')
 def index():
     return render_template('home.html')
+
 
 @my_app.route('/dashboard/')
 @is_logged_in
 def snotel_dashboard():
     return redirect(url_for('/snotel_dashboard/'))
 
-
-# @my_app.route('/snotel_dashboard')
-# @is_logged_in
-# def snotel_dashboard():
-#     return redirect(url_for('/dashboard'))
 
 @my_app.route('/about')
 def about():
@@ -140,7 +138,7 @@ def login():
         conn = psycopg2.connect(
             host=db_config['host'],
             user=db_config['user'],
-            password='',
+            password=db_config['password'],
             dbname=db_config['dbname']
         )
         cur = conn.cursor(
