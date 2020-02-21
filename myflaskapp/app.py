@@ -49,7 +49,7 @@ def query_load_data(sql_command=None):
     conn = psycopg2.connect(
         host=db_config['host'],
         user=db_config['user'],
-        password='',
+        password=db_config['password'],
         dbname=db_config['dbname']
     )
     
@@ -102,7 +102,7 @@ WHERE state='{state}' AND site_name='{site}' '''
 
 fb_datos = query_load_data(sql_command).sort_values(by='date')
 
-fb_datos.loc[fb_datos['yhat']<0, 'yhat'] = 0
+fb_datos.loc[fb_datos['yhat'] < 0, 'yhat'] = 0
 upper_bound = go.Scatter(
     name='Upper Bound',
     x=fb_datos['date'],
@@ -166,6 +166,14 @@ dash_app.layout = html.Div(
         html.Div(
             id="header",
             children=[
+                html.Img(
+                    id="nasalogo",
+                    src=dash_app.get_asset_url("nasa_logo.png"),
+                    style = dict(
+                        height='6%',
+                        width='6%'
+                    )
+                ),
                 html.Img(
                     id="logo",
                     src=dash_app.get_asset_url(
