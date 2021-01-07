@@ -54,7 +54,7 @@ jupyter-client==5.3.4
 jupyter-core==4.6.1
 kiwisolver==1.1.0
 lunardate==0.2.0
-lxml==4.4.2
+lxml==4.6.2
 Mako==1.1.0
 MarkupSafe==1.1.1
 marshmallow==3.2.2
