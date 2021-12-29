@@ -8,7 +8,7 @@ date:
 
 from flask_app import my_app
 
-from werkzeug.wsgi import DispatcherMiddleware
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 from app import dash_app
 

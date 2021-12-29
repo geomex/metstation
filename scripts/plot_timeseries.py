@@ -102,7 +102,7 @@ def plot_time_series(data,
 
     # ---------- Convert to Numeric Values ---------- #
 
-    sub_data = sub_data.convert_objects(convert_numeric=True)
+    sub_data = sub_data._convert(numeric=True)
 
     # ---------- Plot Column 1 ---------- #
 
