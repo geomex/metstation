@@ -150,8 +150,7 @@ hist = go.Histogram(
 # --------------- #
 cols_locs = [
     'ntwk', 'state', 'site_name',
-    'ts', 'start', 'lat',
-    'lon', 'elev', 'county', 'huc'
+    'start', 'lat', 'lon', 'elev', 'county', 'huc'
 ]
 
 sql_command = f'''SELECT {', '.join([str(col) for col
@@ -802,7 +801,7 @@ def fbprophet_update(state_value, site_value, year_value):
 def update_snotel_map(state_value, site_value):
     cols = [
         'ntwk', 'state', 'site_name',
-        'ts', 'start', 'lat',
+        'start', 'lat',
         'lon', 'elev', 'county', 'huc'
     ]
 
