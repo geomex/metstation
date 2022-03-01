@@ -150,7 +150,8 @@ hist = go.Histogram(
 # --------------- #
 cols_locs = [
     'ntwk', 'state', 'site_name',
-    'start', 'lat', 'lon', 'elev', 'county', 'huc'
+    'start', 'lat',
+    'lon', 'elev', 'county', 'huc'
 ]
 
 sql_command = f'''SELECT {', '.join([str(col) for col

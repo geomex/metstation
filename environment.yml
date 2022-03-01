@@ -46,7 +46,6 @@ dependencies:
   - html5lib=1.0.1
   - icu=64.2
   - idna=2.8
-  - intel-openmp=2019.5
   - itsdangerous=1.1.0
   - jinja2=2.10.3
   - kiwisolver=1.1.0

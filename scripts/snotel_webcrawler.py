@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 from os.path import abspath
 import os
-
+import re
 
 # ------------------------------ #
 #      Create Directory          #
@@ -55,19 +55,24 @@ def snotel_spider(pages):
             subpages.append(option['value'])
         alldata = dict()    # init dictionary
         for sub in subpages:
-            print(sub + '\n')
+            print(sub)
+
             br = mechanize.Browser()
             br.set_handle_robots(False)
             br.open(url)
-            br.select_form(method='get')
+            br.select_form(method='get', action='./tabget')
+
             # --------------------------------------#
             #       Locate the Control Switchd      #
             # --------------------------------------#
-            cosa = br.find_control(name="stationidname").get(sub)
+
+            cosa = br.find_control(name = "stationidname").get(sub)
+
             # --------------------------------------#
             #        Activate the Switch            #
             # --------------------------------------#
             cosa.selected = True
+
             # --------------------------- #
             #      Submit the Form        #
             # --------------------------- #
@@ -75,69 +80,95 @@ def snotel_spider(pages):
             #     content = str(urllib2.urlopen(url).read())
             # except (http.client.IncompleteRead) as e:
             #     content = str(e.partial)
+
             try:
                 submit_form = br.submit()
             except Exception:
-                print('\n\nSnotel Site ' + sub +
-                      ' was unable to open.\n\n')
-                continue
+                print(
+                    '\n\nSnotel Site ' + sub + ' was unable to open.\n\n'
+                )
+
             # --------------------------------------#
             #            Read the Page              #
             # --------------------------------------#
+
             content = str(submit_form.read())
+
+            content = content.replace('\\t', '').split('\\n')
+
             # ---------------------------- #
             #       Split into Lines       #
             # ----------------------------- #
-            content = content.split("\\n")
-            sitename = [(ix, item) for ix, item in enumerate(content)
-                        if "SNOTEL" in item]
-            # ----------------------------------------- #
-            #            Try to Pull Site name          #
-            #       If empty move to next Snotel Site   #
-            # ----------------------------------------- #
-            try:
-                sitename = sitename[0][1].strip("#\\t")
-            except Exception:
-                continue
-            numline = [(ix, item) for ix, item in enumerate(content)
-                       if "Date" in item]
-            data = content[numline[-1][0]+1:]  # beginning of data
-            columns = content[numline[-1][0]].split(',')  # col names
-            columns = [columns[i].strip().lower()
-                       .replace(' ', '_').replace('(', '')
-                       .replace(')', '')
-                       for i in np.arange(len(columns))]
-            # ---------------------------- #
-            #       Create DataFrame       #
-            # ---------------------------- #
-            data = pd.DataFrame([d.split(",") for d in data],
-                                columns=columns)
-            # ----------------------------------- #
-            #      Store DataFrame in Dict        #
-            # ----------------------------------- #
-            alldata[sitename] = data
-            # ----------------------------------------- #
-            #       Create Directory if Necessary       #
-            # ----------------------------------------- #
-        if not os.path.exists(carpeta + '/' + page + '/'):
-            os.makedirs(carpeta + '/' + page + '/')
-            # ------------------------------------- #
-            #       Save Dictionary as Pickle       #
-            # ------------------------------------- #
-            with open(carpeta + '/' + page + '/allsnotel_dict.pickle',
-                      'wb') as f:
-                pickle.dump(alldata, f,
-                            protocol=pickle.HIGHEST_PROTOCOL)
-                f.close()
-            # ------------------------------- #
-            #       Save Keys as Pickle       #
-            # ------------------------------- #
-        with open(carpeta + '/' + page + '/keys.pickle',
-                  'wb') as f:
-            pickle.dump(list(alldata.keys()), f,
-                        protocol=pickle.HIGHEST_PROTOCOL)
+
+            match_str = r"SNOTEL.*{0}\b".format(page)
+            p = re.compile(match_str)
+            for ix, item in enumerate(content):
+                # print(item)
+                found = re.findall(p, item)
+                if found:
+                    sitename = found[0].strip("#\\t")
+                    print('{0}\n'.format(sitename))
+
+                    # ----------------------------------------- #
+                    #            Try to Pull Site name          #
+                    #       If empty move to next Snotel Site   #
+                    # ----------------------------------------- #
+
+
+                    numline = [
+                        (ix, item) 
+                        for ix, item in enumerate(content)
+                        if "Date" in item
+                    ]
+
+                    if len(numline) == 0:
+                        pass
+                    else:
+
+                        data = content[numline[-1][0]+1:]  # beginning of data
+                        columns = content[numline[-1][0]].split(',')  # col names
+                        columns = [columns[i].strip().lower()
+                                   .replace(' ', '_').replace('(', '')
+                                   .replace(')', '')
+                                   for i in np.arange(len(columns))]
+                        # ---------------------------- #
+                        #       Create DataFrame       #
+                        # ---------------------------- #
+                        data = pd.DataFrame([d.split(",") for d in data],
+                                            columns=columns)
+                        # ----------------------------------- #
+                        #      Store DataFrame in Dict        #
+                        # ----------------------------------- #
+                        alldata[sitename] = data
+                        # ----------------------------------------- #
+                        #       Create Directory if Necessary       #
+                        # ----------------------------------------- #
+
+        directorio = '{0}/{1}/'.format(carpeta, page)
+        if not os.path.exists(directorio):
+            os.makedirs(directorio)
+
+        # ------------------------------------- #
+        #       Save Dictionary as Pickle       #
+        # ------------------------------------- #
+
+        with open(
+                '{0}/{1}/allsnotel_dict.pickle'.format(carpeta, page), 'wb'
+        ) as f:
+            pickle.dump(
+                alldata, f, protocol=pickle.HIGHEST_PROTOCOL
+            )
             f.close()
 
+        # ------------------------------- #
+        #       Save Keys as Pickle       #
+        # ------------------------------- #
+        with open(
+            carpeta + '/' + page + '/keys.pickle', 'wb'
+        ) as f:
+            pickle.dump(
+                list(alldata.keys()), f, protocol=pickle.HIGHEST_PROTOCOL)
+            f.close()
 
 # ------------------------------------- #
 #            Run the Spider             #

@@ -76,7 +76,10 @@ python snotel_webcrawler
 
 #### Setting up a Local Postgres Instance
 
-... comming soon 
+```
+brew install postgis
+```
+
 
 #### Running a Local Instance of Postgres
 
