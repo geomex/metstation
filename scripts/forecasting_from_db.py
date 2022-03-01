@@ -53,55 +53,60 @@ snotelID_to_name = {}
 
 
 for state in states:
-    if len(state) == 2:
+    if len(state) == 2 and state == 'WA':
         print(f'Working on State {state}')
-        try:
-            datos, snotel_id = load_snotel(state)
-            # ----------------------------------- #
-            # Create a Table for Each Snotel Site #
-            # ----------------------------------- #
-            for sno_id in snotel_id:
-                datos[sno_id] = datos[sno_id].replace(
-                    to_replace="nan", value=np.nan
-                )
-                # Convert to Datetime
-                datos[sno_id]['date'] = pd.to_datetime(
-                    datos[sno_id]['date'], format="%m/%d/%y"
-                )
-                
-                # ------------------ #
-                # Convert to Numeric #
-                # ------------------ #                
-                
-                for col in datos[sno_id].columns:
-                    if col not in ['date', 'site_name', 'state', 'site_id']:
-                        datos[sno_id][col] = pd.to_numeric(datos[sno_id][col])
-                        if col in ['site_id']:
-                            datos[sno_id][col] = datos[sno_id][col].astype('int')
-                        else:
-                            datos[sno_id][col] = datos[sno_id][col].astype('str')
-                datos[sno_id] = datos[sno_id].replace(
-                    to_replace="nan", value=np.nan
-                )
-                site_name = sno_id.split(':')[1].split(',')[0].strip()
-                columns = datos[sno_id].columns.tolist()
-                columns = [
-                    columns[i].strip().lower()
-                    .replace(' ', '_').replace('(', '')
-                    .replace(')', '')
-                    for i in np.arange(len(columns))
-                ]
-                datos[sno_id].columns = columns
-                # Rename 
-                tmp = datos[sno_id][
-                    ['date','snow_water_equivalent_in_start_of_day_values']
-                ].rename(
-                    columns={
-                        'date':'ds',
-                        'snow_water_equivalent_in_start_of_day_values':'y'
-                    }
-                )                
-                # Use fbprophet to predict SWE #
+        datos, snotel_id = load_snotel(state)
+        # ----------------------------------- #
+        # Create a Table for Each Snotel Site #
+        # ----------------------------------- #
+        for sno_id in snotel_id:
+
+            datos[sno_id] = datos[sno_id].replace(
+                to_replace="nan", value=np.nan
+            )
+            # Convert to Datetime
+            datos[sno_id]['date'] = pd.to_datetime(
+                datos[sno_id]['date'], format="%m/%d/%y"
+            )
+
+            # ------------------ #
+            # Convert to Numeric #
+            # ------------------ #                
+
+            for col in datos[sno_id].columns:
+                if col not in ['date', 'site_name', 'state', 'site_id']:
+                    datos[sno_id][col] = pd.to_numeric(datos[sno_id][col])
+                    if col in ['site_id']:
+                        datos[sno_id][col] = datos[sno_id][col].astype('int')
+                    else:
+                        datos[sno_id][col] = datos[sno_id][col].astype('str')
+            datos[sno_id] = datos[sno_id].replace(
+                to_replace="nan", value=np.nan
+            )
+            site_name = sno_id.split(':')[1].split(',')[0].strip()
+            columns = datos[sno_id].columns.tolist()
+            columns = [
+                columns[i].strip().lower()
+                .replace(' ', '_').replace('(', '')
+                .replace(')', '')
+                for i in np.arange(len(columns))
+            ]
+            datos[sno_id].columns = columns
+            # Rename 
+            tmp = datos[sno_id][
+                ['date','snow_water_equivalent_in_start_of_day_values']
+            ].rename(
+                columns={
+                    'date':'ds',
+                    'snow_water_equivalent_in_start_of_day_values':'y'
+                }
+            )
+            number_of_nonnans = tmp.loc[~tmp['y'].isna(), :].shape[0]
+            
+            if number_of_nonnans < 10:
+                continue
+            # Use fbprophet to predict SWE #
+            else:
                 swe_model = swe_prophet(
                     swe_for_prophet=tmp,
                     interval_width=0.95
@@ -174,5 +179,4 @@ for state in states:
                         'multiplicative_terms_upper': types.REAL
                     }
                 )
-        except:
-            print('Unable to push to DB')
+

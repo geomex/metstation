@@ -75,10 +75,12 @@ cols = [
 # Query States #
 # ------------ #
 
-query_state = '''SELECT state FROM snotel '''
-estados = query_load_data(
-    query_state
-)['state'].unique().tolist()
+def return_state_db():
+    query_state = '''SELECT state FROM snotel '''
+    estados = query_load_data(
+        query_state
+    )['state'].unique().tolist()
+    return estados
 
 
 # --------------------------- #
@@ -226,7 +228,7 @@ dash_app.layout = html.Div(
                                     id="state-dropdown",                                    
                                     options=[
                                         {'label': i, 'value': i}
-                                        for i in estados
+                                        for i in return_state_db()
                                     ],
                                     value='ID'
                                 ),
@@ -459,10 +461,7 @@ dash_app.layout = html.Div(
                                         ),
                                     ),
                                 ),
-                            ], #style={
-                            #     'text-orientation': 'sideways', 
-                            #     "border-style": "solid",
-                            # },
+                            ],
                         ),
                         # ----------------------- #
                         # Prophet Swe Predictions #
@@ -481,51 +480,6 @@ dash_app.layout = html.Div(
                                             lower_bound
                                         ],
                                         layout=go.Layout(
-                                        #     paper_bgcolor = 'rgba(0,0,0,0)',
-                                        #     plot_bgcolor = 'rgba(0,0,0,0.1)',
-                                        #     yaxis=dict(
-                                        #         range=(
-                                        #             -3,
-                                        #             fb_datos['yhat_upper'].max(),
-                                        #         ),
-                                        #         title='Snow Water Equivalent (inches)',
-                                        #         titlefont = dict(
-                                        #             color='lightgrey'
-                                        #         ),
-                                        #         tickfont = dict(
-                                        #             color='lightgrey'
-                                        #         ),
-                                        #     ),
-                                        #     xaxis = dict(
-                                        #         title = 'Dates',
-                                        #         titlefont = dict(
-                                        #             color='lightgrey'
-                                        #         ),
-                                        #         tickfont = dict(
-                                        #             color='lightgrey'
-                                        #         ),
-                                        #     ),
-                                        #     scene=dict(
-                                        #         xaxis=dict(
-                                        #             gridcolor="rgba(0,0,0, 0.1)",
-                                        #             showbackground=True,
-                                        #             zerolinecolor="rgba(0,0,0)",
-                                        #             tickwidth=1,
-                                        #             tickfont=dict(
-                                        #                 color="white",
-                                        #             ),
-                                        #         ),
-                                        #         yaxis=dict(
-                                        #             gridcolor="rgba(0,0,0, 0.1)",
-                                        #             showbackground=False,
-                                        #             zerolinecolor="rgba(0,0,0,0.1)",
-                                        #             tickwidth=1,
-                                        #             tickfont=dict(
-                                        #                 color="white",
-                                        #             ),
-                                        #             title='Snow Water Equivalent'
-                                        #         ),
-                                        #     ),
                                             margin={'t':0, 'b': 0},                                            
                                         ),
                                     ),
