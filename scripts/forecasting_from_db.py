@@ -71,7 +71,7 @@ for state in states:
 
             # ------------------ #
             # Convert to Numeric #
-            # ------------------ #                
+            # ------------------ #
 
             for col in datos[sno_id].columns:
                 if col not in ['date', 'site_name', 'state', 'site_id']:
@@ -92,7 +92,7 @@ for state in states:
                 for i in np.arange(len(columns))
             ]
             datos[sno_id].columns = columns
-            # Rename 
+            # Rename
             tmp = datos[sno_id][
                 ['date','snow_water_equivalent_in_start_of_day_values']
             ].rename(
@@ -102,7 +102,7 @@ for state in states:
                 }
             )
             number_of_nonnans = tmp.loc[~tmp['y'].isna(), :].shape[0]
-            
+
             if number_of_nonnans < 10:
                 continue
             # Use fbprophet to predict SWE #
@@ -116,7 +116,7 @@ for state in states:
                 datos[sno_id] = pd.concat([datos[sno_id], f], axis=1)
                 # ----------------------------- #
                 # Add Site Name and ID to Table #
-                # ----------------------------- # 
+                # ----------------------------- #
                 datos[sno_id]['site_name'] = site_name
                 datos[sno_id]['site_id'] = sno_id.split(':')[0].split(" ")[1]
                 # ----------------------- #

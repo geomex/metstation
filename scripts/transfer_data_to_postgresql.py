@@ -93,15 +93,15 @@ for state in states:
         print('Unable to push to DB')
 
 
-df_snotelids = pd.DataFrame.from_dict(
-    snotelID_to_name, orient='index', columns=['Snotel Name']
-).reset_index()
+# df_snotelids = pd.DataFrame.from_dict(
+#     snotelID_to_name, orient='index', columns=['Snotel Name']
+# ).reset_index()
 
-df_snotelids.columns = ['Snotel ID', 'Snotel Name']
+# df_snotelids.columns = ['Snotel ID', 'Snotel Name']
 
-df_snotelids.to_sql(
-    'SnotelIDs',
-    engine,
-    if_exists='replace',
-    index=False
-)
+# df_snotelids.to_sql(
+#     'SnotelIDs',
+#     engine,
+#     if_exists='replace',
+#     index=False
+# )
