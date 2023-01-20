@@ -60,7 +60,7 @@ MarkupSafe==1.1.1
 marshmallow==3.2.2
 marshmallow-sqlalchemy==0.19.0
 matplotlib==3.1.1
-mechanize==0.4.5
+mechanize==0.4.6
 mistune==2.0.3
 mkl-fft==1.0.15
 mkl-random==1.1.0
