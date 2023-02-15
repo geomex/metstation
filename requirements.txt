@@ -121,7 +121,7 @@ virtualenv==16.7.5
 waitress>=1.4.3
 wcwidth==0.1.7
 webencodings==0.5.1
-Werkzeug==0.16.0
+Werkzeug==2.2.3
 widgetsnbextension==3.5.1
 WTForms==2.2.1
 zipp==0.6.0
